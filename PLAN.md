@@ -15,7 +15,7 @@ Single source of truth for progress. If context resets, resume from here.
 | 7 | Home, stats, personalisation | ✅ done |
 | 8 | Security, app lock, encrypted backup/restore | ✅ done |
 | 9 | Testing | ✅ 58 unit + 15 end-to-end tests passing (headless Chrome) |
-| 10 | Packaging: PWA, CI, README | ✅ written; CI not yet run (no GitHub repo connected yet) |
+| 10 | Packaging: PWA, CI, README | ✅ done; CI green on GitHub (Windows installer, Android APK, PWA) |
 
 ## Stage 1 — Architecture & stack
 
@@ -117,7 +117,7 @@ Tags `v*` attach builds to a GitHub Release.
 | Importers, database, search, stats, crypto, backup/restore | Unit tests on the real SQLite engine |
 | Reader, navigation, progress across restarts, annotations, search, editing, deletion, backup/restore, app lock, offline, layouts at 390/800/1280/1920 px | End-to-end in headless Chrome against the production build |
 | Rust shell / Tauri config / capabilities | `cargo check --release` |
-| Windows installer, Android APK, GitHub Actions workflow | **Not yet run** — needs the GitHub repo |
+| Windows installer, Android APK, GitHub Actions workflow | ✅ Built by CI on GitHub (run 42418104825); installers not yet installed on a device |
 | Real devices (MagicPad 2, Windows 11 PC, iPhone) | **Not tested** |
 
 ## Known issues / limitations
@@ -138,6 +138,7 @@ Tags `v*` attach builds to a GitHub Release.
 - **v2 not started**: reading goals/reminders and live encrypted sync.
 
 ## Left to do
-1. Connect the GitHub repo, push, and let CI build (fix anything the first Windows/Android build reveals).
-2. Create the Android signing key and secrets (README §7).
+1. ~~Connect GitHub and get CI green~~ — done (repo `Mersanessa/Notavi`). First CI runs found and fixed: an invalid
+   bundle category, a broken Android setup action, and a reader race (chapter title rendered before its text).
+2. Create the Android signing key and secrets (README §7) — until then CI produces a debug APK.
 3. Test on the MagicPad 2 and the PC; then v2 if wanted (goals & reminders, live sync).

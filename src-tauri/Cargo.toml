@@ -18,6 +18,11 @@ tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-opener = "2"
 
+# Debug builds (the unsigned Android APK) don't need Rust debug symbols; they made the APK ~250 MB.
+[profile.dev]
+debug = false
+strip = "debuginfo"
+
 [profile.release]
 codegen-units = 1
 lto = true
