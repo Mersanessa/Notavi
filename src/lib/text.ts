@@ -1,9 +1,10 @@
 /** Text helpers shared by importers, repositories and the reader. */
 
 export function newId(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
+  const c = globalThis.crypto as Crypto;
+  if (typeof c.randomUUID === 'function') return c.randomUUID();
   const b = new Uint8Array(16);
-  crypto.getRandomValues(b);
+  c.getRandomValues(b);
   return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
 }
 

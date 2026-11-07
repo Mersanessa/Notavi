@@ -118,7 +118,7 @@ const FIELD_COLUMNS: Record<string, string> = {
   personalNotes: 'personal_notes', language: 'language',
 };
 
-function columnValue(key: string, v: unknown) {
+function columnValue(v: unknown) {
   if (Array.isArray(v)) return JSON.stringify(v);
   if (typeof v === 'boolean') return v ? 1 : 0;
   return v as string;
@@ -232,7 +232,7 @@ export async function updateNovel(db: Db, id: string, patch: Partial<NovelInput>
     const col = FIELD_COLUMNS[k];
     if (!col || v === undefined) continue;
     sets.push(`${col} = ?`);
-    params.push(columnValue(k, v));
+    params.push(columnValue(v));
   }
   if (p.title) {
     sets.push('sort_title = ?');
