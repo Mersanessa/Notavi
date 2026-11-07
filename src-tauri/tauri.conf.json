@@ -31,7 +31,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "category": "Book",
+    "category": "Reference",
     "shortDescription": "Private novel library and reader",
     "longDescription": "Notavi is a private, local-first library and reader for novels you own. No accounts, no tracking, no network.",
     "copyright": "Personal use",
