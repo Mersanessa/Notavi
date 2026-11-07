@@ -65,9 +65,4 @@ export default defineConfig({
   worker: { format: 'es' },
   build: { target: 'es2022', chunkSizeWarningLimit: 1500 },
   server: { port: 5173, strictPort: true, host: process.env.TAURI_DEV_HOST || false },
-  test: {
-    environment: 'happy-dom',
-    include: ['tests/unit/**/*.test.ts'],
-    testTimeout: 30000,
-  },
 } as never);

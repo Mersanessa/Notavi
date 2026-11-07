@@ -8,7 +8,7 @@ Single source of truth for progress. If context resets, resume from here.
 |---|-------|--------|
 | 1 | Architecture & stack | ✅ done |
 | 2 | App structure & design system | ⏳ |
-| 3 | Data layer & storage | ⏳ |
+| 3 | Data layer & storage | ✅ done (20 unit tests on real SQLite) |
 | 4 | Library & import | ⏳ |
 | 5 | Reader | ⏳ |
 | 6 | Search, annotations, progress | ⏳ |
@@ -72,6 +72,10 @@ Trade-offs, stated honestly:
 
 ## Decisions log
 - 2026-11-07: Restarted from scratch at the user's request (model upgraded). First attempt set aside, not reused.
+- 2026-11-07: **Default reading font is Nunito Sans** (user's request: it's the font of the site they read on now),
+  with generous line spacing to match. Other reader fonts stay selectable. UI: Fraunces + Hanken Grotesk.
+- 2026-11-07: **All user-facing text in British English** (favourite, colour, licence, customise, organise…).
+- 2026-11-07: FTS tables key off explicit `rid INTEGER PRIMARY KEY` columns so rowids stay stable across VACUUM.
 
 ## Known issues / limitations
 _(filled in as found)_
