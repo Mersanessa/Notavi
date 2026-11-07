@@ -7,13 +7,13 @@ Single source of truth for progress. If context resets, resume from here.
 | # | Stage | Status |
 |---|-------|--------|
 | 1 | Architecture & stack | ✅ done |
-| 2 | App structure & design system | ⏳ |
+| 2 | App structure & design system | ✅ done |
 | 3 | Data layer & storage | ✅ done (20 unit tests on real SQLite) |
-| 4 | Library & import | ⏳ |
-| 5 | Reader | ⏳ |
-| 6 | Search, annotations, progress | ⏳ |
-| 7 | Home, stats, personalisation | ⏳ |
-| 8 | Security, app lock, encrypted backup/restore | ⏳ |
+| 4 | Library & import | ✅ done (EPUB 2/3, TXT, HTML, Markdown; 28 import tests) |
+| 5 | Reader | ✅ built; e2e tests pending |
+| 6 | Search, annotations, progress | ✅ built; e2e tests pending |
+| 7 | Home, stats, personalisation | ✅ built |
+| 8 | Security, app lock, encrypted backup/restore | ✅ built; tests pending |
 | 9 | Testing | ⏳ |
 | 10 | Packaging: PWA, CI, README | ⏳ |
 
@@ -77,8 +77,29 @@ Trade-offs, stated honestly:
 - 2026-11-07: **All user-facing text in British English** (favourite, colour, licence, customise, organise…).
 - 2026-11-07: FTS tables key off explicit `rid INTEGER PRIMARY KEY` columns so rowids stay stable across VACUUM.
 
+## Stage notes
+
+**Stage 2 — design system.** Tokens in `src/styles/tokens.css`. Ink-dark base (#141a1f), paper text (#e9e2d4),
+brass accent (#c8a15a) used only for progress, primary actions and focus. Fraunces (display) + Hanken Grotesk (UI).
+Books without covers get a generated cloth binding. Rail navigation ≥ 761px, bottom tab bar below.
+
+**Stage 4 — import.** Own allow-list sanitiser (`src/import/dom.ts`) instead of DOMPurify: DOMPurify silently
+no-ops under the unit-test DOM, so its tests proved nothing. EPUB: OPF metadata, nav/NCX titles, splitting files
+that hold several chapters at TOC anchors, images stored as blobs, cover pages skipped, DRM refused. TXT: encoding
+detection (BOM/UTF-8/UTF-16/Windows-1252), chapter heading families (Chapter N / Prologue / 第N章 / roman / numbers),
+Project Gutenberg wrapper stripped, hard-wrapped lines joined, size-based split as a fallback.
+
+**Stage 5 — reader.** Position = (block index, fraction through block), so it survives font/size/width changes.
+Highlights/notes = text offsets + quote (re-found if the chapter is edited). Tap zones, swipe, keyboard, chapter
+drawer, bookmarks drawer, find-in-chapter, selection toolbar, non-modal settings panel, wake lock, full screen.
+Reading time = active time only (stops after 3 min without interaction).
+
 ## Known issues / limitations
-_(filled in as found)_
+- Fixtures are short public-domain excerpts typed from memory plus original filler text (Project Gutenberg is
+  unreachable from the build sandbox).
+- Full screen on Android: the Fullscreen API isn't available in Android WebView, so the reader hides its own
+  bars but the system status/navigation bars stay. (Untested on device.)
 
 ## Left to do
-Everything from Stage 2 on.
+- Stage 9: end-to-end tests, fixes.
+- Stage 10: Tauri project, GitHub Actions (Windows, Android, PWA), icons, README.

@@ -1,0 +1,115 @@
+/*
+ * Notavi design tokens.
+ * Concept: a lamplit study at night — cool ink surfaces, paper-coloured text,
+ * brass used sparingly as the lamplight (progress, primary actions, focus).
+ */
+:root {
+  /* type */
+  --font-display: 'Fraunces Variable', 'Iowan Old Style', Georgia, serif;
+  --font-ui: 'Hanken Grotesk Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-cjk: 'Noto Sans CJK SC', 'PingFang SC', 'Hiragino Sans', 'Microsoft YaHei', 'Noto Sans JP', sans-serif;
+
+  /* scale (1.2 minor third from 16px) */
+  --t-xs: 0.75rem;
+  --t-sm: 0.8125rem;
+  --t-md: 0.9375rem;
+  --t-base: 1rem;
+  --t-lg: 1.2rem;
+  --t-xl: 1.44rem;
+  --t-2xl: 1.728rem;
+  --t-3xl: 2.074rem;
+  --t-4xl: 2.488rem;
+
+  /* spacing (4px grid) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+  --s-16: 64px;
+
+  /* radii follow hierarchy: books are books, panels are soft, chips are pills */
+  --r-cover: 3px;
+  --r-sm: 8px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+  --r-pill: 999px;
+
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 320ms;
+
+  --rail-w: 88px;
+  --tabbar-h: 64px;
+  --content-max: 1240px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* Night (default) */
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #141a1f;
+  --bg-sunk: #10151a;
+  --surface: #1b2229;
+  --surface-2: #232c34;
+  --surface-3: #2b353e;
+  --rule: #303b44;
+  --rule-soft: #26303880;
+  --text: #e9e2d4;
+  --text-2: #b9b3a7;
+  --text-3: #8b8a84;
+  --brass: #c8a15a;
+  --brass-strong: #ddb872;
+  --brass-ink: #1a1408;
+  --brass-wash: #c8a15a1f;
+  --oxblood: #b25563;
+  --danger: #e07a6e;
+  --danger-wash: #e07a6e1c;
+  --ok: #8fb59a;
+  --focus: #ddb872;
+  --scrim: #070a0db8;
+  --shadow-1: 0 1px 2px #0006;
+  --shadow-2: 0 6px 24px -8px #000a, 0 2px 6px -2px #0006;
+  --shadow-book: 0 10px 24px -12px #000d, 0 2px 4px #0007;
+  --spine: linear-gradient(90deg, #0000004d 0, #ffffff14 2.5%, #0000 4%, #0000 96%, #0003 100%);
+}
+
+/* Paper (light) — a cool grey-green paper rather than the usual cream */
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: #edefea;
+  --bg-sunk: #e3e6e0;
+  --surface: #f7f8f5;
+  --surface-2: #e7eae4;
+  --surface-3: #dde1da;
+  --rule: #cfd4cc;
+  --rule-soft: #cfd4cc80;
+  --text: #1d262c;
+  --text-2: #46525a;
+  --text-3: #6b757b;
+  --brass: #94701f;
+  --brass-strong: #7d5d14;
+  --brass-ink: #fffaf0;
+  --brass-wash: #94701f1a;
+  --oxblood: #9a3a48;
+  --danger: #b23a2e;
+  --danger-wash: #b23a2e14;
+  --ok: #3f7a52;
+  --focus: #94701f;
+  --scrim: #1d262c66;
+  --shadow-1: 0 1px 2px #1d262c1a;
+  --shadow-2: 0 8px 28px -10px #1d262c40, 0 2px 6px -2px #1d262c1a;
+  --shadow-book: 0 10px 22px -12px #1d262c66, 0 1px 3px #1d262c33;
+  --spine: linear-gradient(90deg, #00000026 0, #ffffff26 2.5%, #0000 4%, #0000 96%, #0000001a 100%);
+}

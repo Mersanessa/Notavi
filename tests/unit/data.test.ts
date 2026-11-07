@@ -281,3 +281,19 @@ describe('restore', () => {
     await expect(db.replaceWith(new Uint8Array(2000))).rejects.toThrow(/Notavi library/);
   });
 });
+
+describe('erase', () => {
+  it('erases everything but keeps reader settings, and can be undone from the snapshot', async () => {
+    const { eraseLibrary } = await import('../../src/data/admin');
+    const id = await N.createNovel(db, { title: 'Gone' }, { chapters: chapters(2) });
+    await C.createCollection(db, 'Shelf');
+    await setSetting(db, 'reader', { fontSize: 22 });
+    const snap = await eraseLibrary(db);
+    expect(await N.listNovels(db)).toEqual([]);
+    expect(await C.listCollections(db)).toEqual([]);
+    expect((await db.get<{ n: number }>('SELECT count(*) AS n FROM chapter_fts'))!.n).toBe(0);
+    expect(await getSetting(db, 'reader', {})).toEqual({ fontSize: 22 });
+    await db.replaceWith(snap);
+    expect((await N.getNovel(db, id))!.title).toBe('Gone');
+  });
+});

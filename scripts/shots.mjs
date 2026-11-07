@@ -1,0 +1,57 @@
+// Dev helper: screenshots of key screens. Usage: node scripts/shots.mjs [outDir]
+import { chromium } from '@playwright/test';
+import { readdirSync } from 'node:fs';
+const out = process.argv[2] || '/tmp/shots';
+const base = 'http://localhost:4173';
+const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome' });
+const sizes = { tablet: { width: 1280, height: 800 }, portrait: { width: 800, height: 1280 }, phone: { width: 390, height: 844 } };
+const which = (process.env.SIZES || 'tablet').split(',');
+for (const name of which) {
+  const ctx = await browser.newContext({ viewport: sizes[name], deviceScaleFactor: 1, hasTouch: name !== 'tablet' ? true : false });
+  const page = await ctx.newPage();
+  await page.addInitScript(() => localStorage.setItem('notavi.offlineReady', '1'));
+  page.on('console', (m) => m.type() === 'error' && console.log('[console]', m.text()));
+  page.on('pageerror', (e) => console.log('[pageerror]', e.message));
+  await page.goto(base + '/#/');
+  await page.waitForSelector('.page, .welcome', { timeout: 20000 });
+  await page.screenshot({ path: `${out}/${name}-0-empty.png` });
+  // import fixtures
+  await page.goto(base + '/#/import');
+  const files = readdirSync('fixtures').filter((f) => /\.(epub|txt|html|md)$/.test(f)).map((f) => 'fixtures/' + f);
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByTestId('choose-files').click()]);
+  await chooser.setFiles(files);
+  await page.waitForFunction(() => document.querySelectorAll('.import-item--ready').length >= 9, null, { timeout: 30000 });
+  await page.screenshot({ path: `${out}/${name}-1-import.png`, fullPage: false });
+  await page.getByRole('button', { name: /Import all/ }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.import-item--done').length >= 9, null, { timeout: 30000 });
+  await page.goto(base + '/#/library');
+  await page.waitForSelector('[data-testid=book-card]');
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: `${out}/${name}-2-library.png` });
+  await page.getByText('Alice’s Adventures in Wonderland (excerpt)').first().click();
+  await page.waitForSelector('.novel-head');
+  await page.screenshot({ path: `${out}/${name}-3-novel.png` });
+  await page.getByTestId('start-reading').click();
+  await page.waitForSelector('[data-testid=chapter-text] p');
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${out}/${name}-4-reader.png` });
+  await page.getByTestId('reader-settings-btn').click();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${out}/${name}-5-reader-settings.png` });
+  await page.keyboard.press('Escape');
+  await page.mouse.wheel(0, 900);
+  await page.waitForTimeout(800);
+  await page.goto(base + '/#/');
+  await page.waitForSelector('.home-head');
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${out}/${name}-6-home.png`, fullPage: true });
+  await page.goto(base + '/#/stats');
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${out}/${name}-7-stats.png`, fullPage: true });
+  await page.goto(base + '/#/settings');
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${out}/${name}-8-settings.png` });
+  await page.goto(base + '/#/search?q=crimson');
+  await ctx.close();
+}
+await browser.close();

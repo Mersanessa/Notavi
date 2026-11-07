@@ -133,6 +133,8 @@ export function sanitizeChapterHtml(html: string): string {
 /** Remove empty wrappers and collapse excessive breaks. */
 function tidy(html: string): string {
   return html
+    // A paragraph that is only a scene-break ornament ("* * *", "***", "~~~") becomes a real break.
+    .replace(/<p\b[^>]*>\s*(?:[*#~•·◇◆=_]\s*){3,}\s*<\/p>/gi, '<hr>')
     .replace(/<(span|div|section|article|header|footer)>\s*<\/\1>/gi, '')
     .replace(/(<br\s*\/?>\s*){3,}/gi, '<br><br>')
     .replace(/<p>(\s|&nbsp;| )*<\/p>/gi, '')

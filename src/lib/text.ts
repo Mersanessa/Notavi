@@ -75,7 +75,7 @@ export function formatMinutes(min: number): string {
 export function formatDuration(ms: number): string {
   if (ms <= 0) return '0 min';
   const min = Math.round(ms / 60000);
-  return min < 1 ? 'under a minute' : formatMinutes(min);
+  return min < 1 ? '<1 min' : formatMinutes(min);
 }
 
 export function formatNumber(n: number): string {
