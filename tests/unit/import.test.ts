@@ -36,7 +36,7 @@ describe('EPUB', () => {
     expect(ch1).not.toMatch(/<h1/); // duplicate title removed
     expect(ch1).toMatch(/<em>emphasis<\/em>/);
     expect(ch1).not.toMatch(/onclick|<script|alert|href=/);
-    expect(ch1).toContain('data-align="center"');
+    expect(ch1).toContain('<hr>'); // the centred "* * *" became a real scene break
     expect(n.images).toHaveLength(1);
     expect(ch1).toContain(`notavi-blob:${n.images![0].id}`);
   });
@@ -52,6 +52,7 @@ describe('EPUB', () => {
       'Stave III: The Last of the Spirits',
     ]);
     expect(n.chapters[0].content).toContain('Marley was dead');
+    expect(n.chapters[0].content).not.toContain('<h2'); // "Stave One: …" heading matches the "Stave I: …" title
     expect(n.chapters[0].content).not.toContain('When Scrooge awoke');
     expect(n.chapters[1].content).toContain('When Scrooge awoke');
     expect(n.chapters[1].content).not.toContain('Phantom');
@@ -186,6 +187,26 @@ describe('HTML and Markdown', () => {
 
   it('rejects HTML with no text', async () => {
     await expect(parse('malformed/no-text.html')).rejects.toThrow(/no readable text/);
+  });
+});
+
+describe('sanitising', () => {
+  it('keeps basic formatting and centring, and removes everything active', async () => {
+    const { sanitizeChapterHtml, markAlignment } = await import('../../src/import/dom');
+    const doc = new DOMParser().parseFromString('<body><p class="centered">A poem</p><p style="color:red" onmouseover="x()">Hi <a href="javascript:alert(1)">there</a><img src="http://evil/x.png" onerror="x()"><img src="notavi-blob:abcdef12-3456"></p><style>p{}</style><svg><script>1</script></svg><!-- c --></body>', 'text/html');
+    markAlignment(doc.body);
+    const out = sanitizeChapterHtml(doc.body.innerHTML);
+    expect(out).toBe('<p data-align="center">A poem</p><p>Hi there<img src="notavi-blob:abcdef12-3456"></p>');
+  });
+});
+
+describe('duplicate titles', () => {
+  it('recognises the same title written differently', async () => {
+    const { sameTitle } = await import('../../src/import/dom');
+    expect(sameTitle('Stave I: Marley’s Ghost', 'Stave One: Marley’s Ghost')).toBe(true);
+    expect(sameTitle('Chapter 1', 'CHAPTER ONE')).toBe(true);
+    expect(sameTitle('Chapter 1', 'Part 1')).toBe(false);
+    expect(sameTitle('Chapter 3: The Sea', 'The Shore')).toBe(false);
   });
 });
 

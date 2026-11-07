@@ -155,13 +155,39 @@ export function hasContent(html: string): boolean {
   return htmlToText(html).length > 0 || /<img\b/i.test(html);
 }
 
+const NUMBERING = /^(chapter|chap|ch|stave|part|book|volume|vol|episode|ep|act|section|prologue|epilogue|[ivxlcdm]+|\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|the|a|an|of)$/;
+
+function titleWords(s: string): string[] {
+  return s
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+/** True when two chapter titles say the same thing, ignoring numbering style ("Stave I" vs "Stave One"). */
+export function sameTitle(a: string, b: string): boolean {
+  const wa = titleWords(a);
+  const wb = titleWords(b);
+  if (!wa.length || !wb.length) return false;
+  if (wa.join(' ') === wb.join(' ')) return true;
+  const ca = wa.filter((w) => !NUMBERING.test(w));
+  const cb = wb.filter((w) => !NUMBERING.test(w));
+  if (!ca.length && !cb.length) return wa[0] === wb[0]; // e.g. "Chapter 1" vs "Chapter One"
+  return ca.join(' ') === cb.join(' ');
+}
+
 /** Remove the first heading from chapter HTML if it repeats the chapter title (the reader shows the title itself). */
 export function stripLeadingTitle(html: string, title: string): string {
   const m = html.match(/^\s*(?:<(?:div|section|header|article)[^>]*>\s*)*<(h[1-6])[^>]*>([\s\S]*?)<\/\1>/i);
   if (!m) return html;
-  const headingText = htmlToText(m[2]).replace(/\s+/g, ' ').trim().toLowerCase();
-  const t = title.replace(/\s+/g, ' ').trim().toLowerCase();
-  if (headingText && (headingText === t || t.includes(headingText) || headingText.includes(t))) {
+  const headingText = htmlToText(m[2]).replace(/\s+/g, ' ').trim();
+  const t = title.replace(/\s+/g, ' ').trim();
+  const lh = headingText.toLowerCase();
+  const lt = t.toLowerCase();
+  if (headingText && (lh === lt || lt.includes(lh) || lh.includes(lt) || sameTitle(headingText, t))) {
     const idx = html.indexOf(m[0]) + m[0].length;
     const prefix = m[0].slice(0, m[0].lastIndexOf('<' + m[1]));
     return (prefix + html.slice(idx)).trim();

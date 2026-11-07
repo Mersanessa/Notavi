@@ -55,6 +55,8 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
   const blocks = useRef<HTMLElement[]>([]);
   const anchor = useRef<Anchor>({ blockIndex: 0, blockOffset: 0 });
   const restoring = useRef(false);
+  /** Which chapter the DOM currently shows; progress is only saved for that chapter. */
+  const renderedFor = useRef<string | null>(null);
   const openedAt = useRef(Date.now());
   const lastInteraction = useRef(Date.now());
   const timerStart = useRef<number | null>(null);
@@ -189,14 +191,18 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
       anchor.current = captureAnchor(blocks.current, s, TOP_INSET);
     };
     apply();
-    // Re-apply once fonts and images have settled, which can shift layout.
+    restoring.current = false;
+    renderedFor.current = chapter?.id ?? null;
+    const openedAtRender = Date.now();
+    // Re-apply once fonts and images have settled (they can shift layout), unless the reader has already moved.
     const imgs = Array.from(root.querySelectorAll('img')).filter((i) => !i.complete);
     void Promise.all([document.fonts?.ready, ...imgs.map((i) => new Promise((r) => ((i.onload = r), (i.onerror = r))))]).then(() => {
-      if (restoring.current) apply();
-      requestAnimationFrame(() => {
+      if (lastInteraction.current < openedAtRender && renderedFor.current === chapter?.id) {
+        restoring.current = true;
+        apply();
         restoring.current = false;
-        onScroll();
-      });
+      }
+      onScroll();
     });
     setFading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -240,7 +246,7 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
 
   const persist = useCallback(async () => {
     const c = chapterRef.current;
-    if (!c || restoring.current) return;
+    if (!c || renderedFor.current !== c.id) return;
     const a = anchor.current;
     await saveProgress(db(), { novelId, chapterId: c.id, blockIndex: a.blockIndex, blockOffset: a.blockOffset, chapterRatio: computeRatio() });
   }, [novelId, computeRatio]);
@@ -253,7 +259,7 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
   const lastY = useRef(0);
   const onScroll = useCallback(() => {
     const s = scroller.current;
-    if (!s || restoring.current) return;
+    if (!s || restoring.current || !renderedFor.current) return;
     anchor.current = captureAnchor(blocks.current, s, TOP_INSET);
     setRatio(computeRatio());
     // Hide the bars while reading downwards; show them at the very end.
@@ -261,7 +267,6 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
     if (y > lastY.current + 12 && y > 80) setChrome(false);
     if (s.scrollHeight - s.clientHeight - y < 24) setChrome(true);
     lastY.current = y;
-    lastInteraction.current = Date.now();
     schedulePersist();
   }, [computeRatio, schedulePersist]);
 
@@ -354,6 +359,7 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
       if (opts.finished) await markChapterCompleted(db(), novelId, chapter.id);
       else await persist();
       setFading(!reduceMotion);
+      renderedFor.current = null;
       const c = await loadChapter(target.id);
       if (!c) return;
       setInitialAnchor({ blockIndex: 0, blockOffset: 0 });
@@ -531,9 +537,9 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
     };
   }, []);
 
-  const createFromSelection = async (kind: 'highlight' | 'text_bookmark' | 'note', color: HighlightColor = 'amber', note = '') => {
-    if (!selection || !chapter) return;
-    await addAnnotation(db(), { novelId, chapterId: chapter.id, kind, startOffset: selection.start, endOffset: selection.end, blockIndex: selection.blockIndex, quote: selection.quote, color, note });
+  const createFromSelection = async (kind: 'highlight' | 'text_bookmark' | 'note', color: HighlightColor = 'amber', note = '', sel: SelectionInfo | null = selection) => {
+    if (!sel || !chapter) return;
+    await addAnnotation(db(), { novelId, chapterId: chapter.id, kind, startOffset: sel.start, endOffset: sel.end, blockIndex: sel.blockIndex, quote: sel.quote, color, note });
     window.getSelection()?.removeAllRanges();
     setSelection(null);
     await reloadAnnotations();
@@ -783,7 +789,7 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
               await updateAnnotation(db(), noteFor.ann.id, { note, kind: noteFor.ann.kind === 'highlight' ? 'highlight' : 'note' });
               await reloadAnnotations();
               toast({ message: 'Note saved', tone: 'success' });
-            } else await createFromSelection('note', 'amber', note);
+            } else await createFromSelection('note', 'amber', note, noteFor.sel ?? null);
             setNoteFor(null);
           }}
         />
