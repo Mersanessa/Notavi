@@ -10,3 +10,4 @@ src-tauri/gen/android/keystore.properties
 *.keystore
 *.jks
 .env
+*.tsbuildinfo
