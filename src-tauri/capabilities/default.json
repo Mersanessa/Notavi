@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Everything Notavi's window may do natively: save backups where the user chooses, open web links, toggle full screen.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-fullscreen",
+    "dialog:allow-save",
+    "fs:allow-write-file",
+    "opener:allow-open-url"
+  ]
+}

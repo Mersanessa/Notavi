@@ -146,9 +146,9 @@ function NovelHeader({ novel }: { novel: NovelSummary }) {
         {novel.chapterCount > 0 && (
           <div className="novel-head__progress">
             <Ribbon value={novel.percent} label={`${Math.round(novel.percent * 100)}% read`} />
-            <span>
-              {Math.round(novel.percent * 100)}% read
-              {novel.progress && <span className="muted"> · now on {novel.progress.chapterTitle}</span>}
+            <span className="novel-head__pct">
+              <span>{Math.round(novel.percent * 100)}% read</span>
+              {novel.progress && <span className="muted">Now on {novel.progress.chapterTitle}</span>}
             </span>
           </div>
         )}
@@ -437,7 +437,12 @@ function ChaptersTab({ novel }: { novel: NovelSummary }) {
                   <span className="chapter-row__num">{c.position + 1}</span>
                   <span className="chapter-row__title">{c.title}</span>
                   {current && <span className="chapter-row__here">Reading</span>}
-                  <span className="chapter-row__meta">{c.wordCount ? `${formatNumber(c.wordCount)} words · ${formatMinutes(readingMinutes(c.wordCount, wpm))}` : ''}</span>
+                  {c.wordCount > 0 && (
+                    <span className="chapter-row__meta">
+                      <span>{formatNumber(c.wordCount)} words</span>
+                      <span>{formatMinutes(readingMinutes(c.wordCount, wpm))}</span>
+                    </span>
+                  )}
                   {c.completed && <CircleCheck className="chapter-row__check" size={16} aria-label="Read" />}
                 </a>
                 <Menu label={`Actions for ${c.title}`} items={chapterMenu(c)} trigger={(p) => <IconButton icon={MoreHorizontal} size="sm" label={`Actions for ${c.title}`} {...p} />} />
@@ -507,7 +512,7 @@ function NotesTab({ novel }: { novel: NovelSummary }) {
                   <a className="ann__open" href={href(routes.read(novel.id, a.chapterId, `a=${a.id}`))}>
                     <span className="ann__kind">
                       <Icon size={14} aria-hidden /> {KIND_LABEL[a.kind]}
-                      <span className="muted"> · {formatDate(a.createdAt)}</span>
+                      <span className="muted ann__date">{formatDate(a.createdAt)}</span>
                     </span>
                     {a.quote && <blockquote className="ann__quote">{a.quote}</blockquote>}
                     {a.note && <p className="ann__note">{a.note}</p>}

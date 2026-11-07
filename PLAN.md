@@ -8,14 +8,14 @@ Single source of truth for progress. If context resets, resume from here.
 |---|-------|--------|
 | 1 | Architecture & stack | ✅ done |
 | 2 | App structure & design system | ✅ done |
-| 3 | Data layer & storage | ✅ done (20 unit tests on real SQLite) |
-| 4 | Library & import | ✅ done (EPUB 2/3, TXT, HTML, Markdown; 28 import tests) |
-| 5 | Reader | ✅ built; e2e tests pending |
-| 6 | Search, annotations, progress | ✅ built; e2e tests pending |
-| 7 | Home, stats, personalisation | ✅ built |
-| 8 | Security, app lock, encrypted backup/restore | ✅ built; tests pending |
-| 9 | Testing | ⏳ |
-| 10 | Packaging: PWA, CI, README | ⏳ |
+| 3 | Data layer & storage | ✅ done |
+| 4 | Library & import | ✅ done |
+| 5 | Reader | ✅ done |
+| 6 | Search, annotations, progress | ✅ done |
+| 7 | Home, stats, personalisation | ✅ done |
+| 8 | Security, app lock, encrypted backup/restore | ✅ done |
+| 9 | Testing | ✅ 58 unit + 15 end-to-end tests passing (headless Chrome) |
+| 10 | Packaging: PWA, CI, README | ✅ written; CI not yet run (no GitHub repo connected yet) |
 
 ## Stage 1 — Architecture & stack
 
@@ -94,12 +94,50 @@ Highlights/notes = text offsets + quote (re-found if the chapter is edited). Tap
 drawer, bookmarks drawer, find-in-chapter, selection toolbar, non-modal settings panel, wake lock, full screen.
 Reading time = active time only (stops after 3 min without interaction).
 
+**Stage 8 — security.** Backups: AES-256-GCM, PBKDF2-SHA256 600k, header authenticated as additional data,
+gzip inside; restore validates (magic, integrity_check, schema version) and keeps an undo copy. App lock: PIN/passcode
+hashed with PBKDF2 (210k), escalating lockout after 5 failures, auto-lock after time in background, "forgot code"
+path = restore a backup or erase.
+
+**Stage 9 — testing.** Bugs found and fixed by the tests: (1) a race where the delayed re-layout after fonts loaded
+could undo the reader's first scroll and skip saving; (2) adding a note lost the selection when the note box took
+focus; (3) EPUB chapters whose heading differed from the TOC label ("Stave One" vs "Stave I") showed the title twice;
+(4) leaving the reader saved the chapter fraction as 0 because the scroller was already detached;
+(5) DOMPurify silently did nothing under the test DOM (replaced with own sanitiser).
+
+**Stage 10 — packaging.** `src-tauri/` compiles (`cargo check --release` passes on Linux with Tauri 2).
+`.github/workflows/build.yml`: tests → PWA artifacts (root + GitHub Pages builds, optional Pages deploy via
+`DEPLOY_PAGES` variable) → Windows `.msi` + NSIS `.exe` → Android APK (signed release if secrets exist, else debug).
+Tags `v*` attach builds to a GitHub Release.
+
+## Verification status
+
+| Area | Verified how |
+|---|---|
+| Importers, database, search, stats, crypto, backup/restore | Unit tests on the real SQLite engine |
+| Reader, navigation, progress across restarts, annotations, search, editing, deletion, backup/restore, app lock, offline, layouts at 390/800/1280/1920 px | End-to-end in headless Chrome against the production build |
+| Rust shell / Tauri config / capabilities | `cargo check --release` |
+| Windows installer, Android APK, GitHub Actions workflow | **Not yet run** — needs the GitHub repo |
+| Real devices (MagicPad 2, Windows 11 PC, iPhone) | **Not tested** |
+
 ## Known issues / limitations
-- Fixtures are short public-domain excerpts typed from memory plus original filler text (Project Gutenberg is
+- **Untested on real devices.** Chromium (headless) behaviour is verified; the Android System WebView and WebView2
+  are Chromium too, so behaviour should match, but touch feel, Android file pickers and backup saving on Android
+  need checking on the tablet.
+- **Backup saving on Android** uses the dialog plugin's save picker + fs plugin writing to the returned location.
+  This is the documented Tauri 2 path but is the part most likely to need a fix after the first device test.
+- **Full screen on Android**: the reader hides its own bars; Android's status/navigation bars may stay visible.
+- **Android 15+ edge-to-edge**: if the tablet updates to Android 15, content may sit under the status bar until the
+  Android theme is adjusted. The MagicPad 2 ships with Android 14 (MagicOS 8).
+- **iPhone (PWA)**: Safari may clear a web app's storage if the phone runs very low on space. Keep backups.
+- **One window at a time**: a second tab/window of the PWA shows a message instead of opening the library.
+- **Sync is file-based** (export → restore replaces). No merging.
+- **Collections can't be reordered** from the UI yet (the data layer supports it; the list sorts by creation).
+- **Fixtures** are short public-domain excerpts typed from memory plus original filler text (Project Gutenberg is
   unreachable from the build sandbox).
-- Full screen on Android: the Fullscreen API isn't available in Android WebView, so the reader hides its own
-  bars but the system status/navigation bars stay. (Untested on device.)
+- **v2 not started**: reading goals/reminders and live encrypted sync.
 
 ## Left to do
-- Stage 9: end-to-end tests, fixes.
-- Stage 10: Tauri project, GitHub Actions (Windows, Android, PWA), icons, README.
+1. Connect the GitHub repo, push, and let CI build (fix anything the first Windows/Android build reveals).
+2. Create the Android signing key and secrets (README §7).
+3. Test on the MagicPad 2 and the PC; then v2 if wanted (goals & reminders, live sync).

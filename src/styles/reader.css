@@ -857,3 +857,9 @@
 .reader.is-fullscreen .reader__page {
   padding-top: calc(40px + var(--safe-top));
 }
+
+/* The reader is its own scroller; don't reserve a page scrollbar gutter behind it. */
+html:has(.reader) {
+  scrollbar-gutter: auto;
+  overflow: hidden;
+}

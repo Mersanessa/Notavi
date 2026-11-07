@@ -395,6 +395,15 @@
   margin-top: var(--s-2);
   font-size: var(--t-md);
 }
+.novel-head__pct {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--s-4);
+}
+.ann__date {
+  margin-left: var(--s-2);
+  font-weight: 500;
+}
 .novel-head__progress .ribbon {
   height: 4px;
 }
@@ -533,6 +542,8 @@
   border-radius: var(--r-pill);
 }
 .chapter-row__meta {
+  display: flex;
+  gap: var(--s-3);
   font-size: var(--t-xs);
   color: var(--text-3);
   white-space: nowrap;

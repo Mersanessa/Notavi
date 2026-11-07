@@ -1,0 +1,198 @@
+name: Build
+
+# Builds and tests on every push. Installers/APKs appear as downloadable
+# artifacts on the run's page; pushing a tag like v1.0.0 also attaches them to a GitHub Release.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: End-to-end tests (Chrome)
+        run: npx playwright test
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: test-results/
+          retention-days: 7
+
+  pwa:
+    name: PWA (web app for iPhone)
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build for hosting at the root of a domain (e.g. Cloudflare Pages)
+        run: npx tsc -b && npx vite build --outDir dist-root
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notavi-pwa-root
+          path: dist-root/
+      - name: Build for GitHub Pages (served under /<repo-name>/)
+        run: npx vite build
+        env:
+          NOTAVI_BASE: /${{ github.event.repository.name }}/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notavi-pwa-github-pages
+          path: dist/
+      - name: Upload for GitHub Pages
+        if: vars.DEPLOY_PAGES == 'true' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/
+
+  deploy-pages:
+    name: Publish PWA to GitHub Pages
+    if: vars.DEPLOY_PAGES == 'true' && github.ref == 'refs/heads/main'
+    needs: pwa
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  windows:
+    name: Windows installer
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - name: Build .msi and .exe
+        run: npx tauri build --bundles msi,nsis
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notavi-windows
+          path: |
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/nsis/*.exe
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/nsis/*.exe
+
+  android:
+    name: Android APK
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      NDK_VERSION: 27.0.12077973
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - name: Install the Android NDK
+        run: |
+          sdkmanager --install "ndk;${NDK_VERSION}" > /dev/null
+          echo "NDK_HOME=$ANDROID_HOME/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - name: Generate the Android project
+        run: |
+          npx tauri android init --ci
+          # Use Notavi's launcher icons.
+          cp -r src-tauri/icons/android/* src-tauri/gen/android/app/src/main/res/
+
+      - name: Configure release signing (only when signing secrets are set)
+        id: signing
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/notavi.jks"
+            {
+              echo "keyAlias=$KEY_ALIAS"
+              echo "password=$KEY_PASSWORD"
+              echo "storeFile=$RUNNER_TEMP/notavi.jks"
+            } > src-tauri/gen/android/keystore.properties
+            node scripts/android-signing.mjs src-tauri/gen/android/app/build.gradle.kts
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No signing secrets: building a debug-signed APK instead."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build signed release APK
+        if: steps.signing.outputs.signed == 'true'
+        run: npx tauri android build --apk --target aarch64 --target armv7
+      - name: Build debug APK (installable, unsigned for release)
+        if: steps.signing.outputs.signed != 'true'
+        run: npx tauri android build --apk --debug --target aarch64 --target armv7
+
+      - name: Collect APK
+        run: |
+          mkdir -p out
+          find src-tauri/gen/android/app/build/outputs/apk -name "*.apk" -exec cp {} out/ \;
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notavi-android
+          path: out/*.apk
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/*.apk

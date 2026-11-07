@@ -193,6 +193,7 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
     apply();
     restoring.current = false;
     renderedFor.current = chapter?.id ?? null;
+    lastRatio.current = initialAnchor && (initialAnchor.blockIndex > 0 || initialAnchor.blockOffset > 0) ? lastRatio.current : 0;
     const openedAtRender = Date.now();
     // Re-apply once fonts and images have settled (they can shift layout), unless the reader has already moved.
     const imgs = Array.from(root.querySelectorAll('img')).filter((i) => !i.complete);
@@ -236,12 +237,15 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
 
   /* ---------------------------------------------------------------- progress */
 
+  const lastRatio = useRef(0);
   const computeRatio = useCallback(() => {
     const s = scroller.current;
-    if (!s) return 0;
+    // On unmount the scroller is already detached: keep the last measured value.
+    if (!s) return lastRatio.current;
     const max = s.scrollHeight - s.clientHeight;
-    if (max <= 4) return Date.now() - openedAt.current > SHORT_CHAPTER_DWELL_MS ? 1 : 0;
-    return Math.min(1, s.scrollTop / max);
+    const r = max <= 4 ? (Date.now() - openedAt.current > SHORT_CHAPTER_DWELL_MS ? 1 : 0) : Math.min(1, s.scrollTop / max);
+    lastRatio.current = r;
+    return r;
   }, []);
 
   const persist = useCallback(async () => {

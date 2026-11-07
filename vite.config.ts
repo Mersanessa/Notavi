@@ -27,8 +27,9 @@ export default defineConfig({
   plugins: [
     react(),
     {
+      // Tauri builds get their CSP from tauri.conf.json (Tauri adds its own nonces), so only the PWA gets a meta CSP.
       name: 'notavi-csp',
-      apply: 'build',
+      apply: () => !isTauri && process.env.NODE_ENV !== 'development',
       transformIndexHtml: (html: string) =>
         html.replace('<head>', `<head>\n    <meta http-equiv="Content-Security-Policy" content="${CSP}" />`),
     },

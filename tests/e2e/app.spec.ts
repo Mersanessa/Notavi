@@ -200,9 +200,10 @@ test('reads chapter by chapter with keyboard, buttons, taps and the chapter list
   await page.locator('.reader__scroll').evaluate((e) => e.scrollTo(0, e.scrollHeight));
   await page.waitForTimeout(1200);
 
-  // Escape leaves the reader.
+  // Escape leaves the reader, and progress isn't lost on the way out.
   await page.keyboard.press('Escape');
   await expect(page.locator('.novel-head__title')).toBeVisible();
+  await expect(page.locator('.novel-head__progress')).toContainText('100% read');
   // Stave I (finished by moving on) and Stave III (read to the end) are read; Stave II was skipped.
   await page.getByRole('tab', { name: /Chapters/ }).click();
   await expect(page.locator('.chapter-row.is-read .chapter-row__title')).toHaveText(['Stave I: Marley’s Ghost', 'Stave III: The Last of the Spirits']);
