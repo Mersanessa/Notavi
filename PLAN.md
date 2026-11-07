@@ -59,7 +59,7 @@ Trade-offs, stated honestly:
 * If a native backend is ever wanted, implement `Db` with `tauri-plugin-sql`; repositories don't change.
 
 ### Other notable decisions
-* **Chapters are stored as sanitised HTML** (DOMPurify at import and again at render); EPUB images
+* **Chapters are stored as sanitised HTML** (own allow-list sanitiser, at import and again at render); EPUB images
   are stored as blobs in the DB and rewritten to `blob:` URLs when displayed.
 * **Restore replaces the whole library** after validating the file (SQLite header, integrity check,
   schema version), keeping a safety copy so a restore can be undone. This is the v1 "sync": export on
