@@ -38,7 +38,10 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [missing, setMissing] = useState(false);
   const [chapter, setChapter] = useState<Chapter | null>(null);
-  const [html, setHtml] = useState('');
+  /** What's on screen: the chapter and its rendered HTML change together, never one before the other. */
+  const [view, setView] = useState<{ chapter: Chapter; html: string } | null>(null);
+  const html = view?.html ?? '';
+  const shown = view?.chapter ?? null;
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [chrome, setChrome] = useState(true);
   const [panel, setPanel] = useState<'none' | 'settings' | 'chapters' | 'bookmarks'>('none');
@@ -118,7 +121,7 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
     void Promise.all([resolveBlobRefs(sanitizeChapterHtml(chapter.content)), listAnnotationsForChapter(db(), chapter.id)]).then(([h, anns]) => {
       if (!alive) return;
       restoring.current = true;
-      setHtml(h);
+      setView({ chapter, html: h });
       setAnnotations(anns);
     });
     openedAt.current = Date.now();
@@ -168,7 +171,7 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
   useLayoutEffect(() => {
     const root = article.current;
     if (!root || !html) return;
-    root.innerHTML = html;
+    root.innerHTML = view!.html;
     blocks.current = getBlocks(root);
     paint();
     // Restore position: saved anchor, annotation, or search match.
@@ -192,13 +195,13 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
     };
     apply();
     restoring.current = false;
-    renderedFor.current = chapter?.id ?? null;
+    renderedFor.current = view!.chapter.id;
     lastRatio.current = initialAnchor && (initialAnchor.blockIndex > 0 || initialAnchor.blockOffset > 0) ? lastRatio.current : 0;
     const openedAtRender = Date.now();
     // Re-apply once fonts and images have settled (they can shift layout), unless the reader has already moved.
     const imgs = Array.from(root.querySelectorAll('img')).filter((i) => !i.complete);
     void Promise.all([document.fonts?.ready, ...imgs.map((i) => new Promise((r) => ((i.onload = r), (i.onerror = r))))]).then(() => {
-      if (lastInteraction.current < openedAtRender && renderedFor.current === chapter?.id) {
+      if (lastInteraction.current < openedAtRender && renderedFor.current === view!.chapter.id) {
         restoring.current = true;
         apply();
         restoring.current = false;
@@ -207,7 +210,7 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
     });
     setFading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [html]);
+  }, [view]);
 
   // Re-paint highlights when annotations change (without moving the reader).
   useEffect(() => {
@@ -380,7 +383,7 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
   const page = useCallback(
     (dir: 1 | -1) => {
       const s = scroller.current;
-      if (!s) return;
+      if (!s || !chapterRef.current || renderedFor.current !== chapterRef.current.id) return; // still switching chapters
       const lh = prefs.fontSize * prefs.lineHeight;
       const atEnd = s.scrollTop + s.clientHeight >= s.scrollHeight - 4;
       const atStart = s.scrollTop <= 2;
@@ -637,7 +640,8 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
       </div>
     );
 
-  const words = chapter?.wordCount ?? 0;
+  const words = shown?.wordCount ?? 0;
+  const shownIndex = loaded && shown ? loaded.chapters.findIndex((c) => c.id === shown.id) : -1;
   const minutesLeft = Math.max(0, Math.round(readingMinutes(words, prefs.wpm) * (1 - ratio)));
   const novelPct = loaded && index >= 0 ? (index + ratio) / loaded.chapters.length : 0;
   const isLast = loaded ? index === loaded.chapters.length - 1 : false;
@@ -671,19 +675,19 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
       )}
 
       <div className="reader__scroll" ref={scroller} onScroll={onScroll} onPointerDown={onPointerDown} onPointerUp={onPointerUp} onWheel={touch} tabIndex={-1}>
-        {!chapter || !html ? (
+        {!shown ? (
           <div className="reader__loading">
             <Spinner label="Loading chapter" />
           </div>
         ) : null}
         <div className={`reader__page ${fading ? 'is-fading' : ''}`}>
-          {chapter && (
+          {shown && (
             <header className="chapter-head">
               <p className="chapter-head__novel">{loaded?.novel.title}</p>
-              <h1 className="chapter-head__title">{chapter.title}</h1>
+              <h1 className="chapter-head__title">{shown.title}</h1>
               <p className="chapter-head__meta">
                 <span>
-                  Chapter {index + 1} of {formatNumber(loaded?.chapters.length ?? 0)}
+                  Chapter {shownIndex + 1} of {formatNumber(loaded?.chapters.length ?? 0)}
                 </span>
                 {words > 0 && <span>{formatNumber(words)} words</span>}
                 {words > 0 && <span>{formatMinutes(readingMinutes(words, prefs.wpm))}</span>}
