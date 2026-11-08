@@ -185,7 +185,30 @@ function splitAt(root: Element, markers: Element[]) {
 
 /* ------------------------------------------------------------------ planning */
 
-const words = (html: string) => countWords(htmlToText(html));
+/**
+ * Big novels have thousands of chapters, and planning and checking them reads every word. These caches keep that
+ * to once per chapter text, so changing an option (or typing a title) doesn't re-read the whole book. Keyed by the
+ * text itself, so they can never return a stale answer; trimmed when they grow large.
+ */
+function memo<T>(cache: Map<string, T>, key: string, make: () => T): T {
+  let v = cache.get(key);
+  if (v === undefined) {
+    if (cache.size > 20000) cache.clear();
+    cache.set(key, (v = make()));
+  }
+  return v;
+}
+const wordCache = new Map<string, number>();
+const tokenCache = new Map<string, string>();
+const countCache = new Map<string, number>();
+const words = (html: string) => memo(wordCache, html, () => countWords(htmlToText(html)));
+/** The text's words, single-spaced: what the word check compares. */
+const normalised = (html: string) => memo(tokenCache, html, () => tokens(htmlToText(html)).join(' '));
+const splitCache = new WeakMap<object, ReturnType<typeof splitAtChapterHeadings>>();
+function splitCached(s: ParsedSection) {
+  if (!splitCache.has(s)) splitCache.set(s, splitAtChapterHeadings(s));
+  return splitCache.get(s)!;
+}
 const isEmpty = (html: string) => !htmlToText(html).trim() && !/<img/i.test(html);
 
 function joinHtml(a: string, b: string): string {
@@ -201,7 +224,7 @@ export function planLayout(volumes: Volume[], opts: PlanOptions): PlanItem[] {
     // 1. Split sections that contain several chapters.
     const pieces: (ParsedSection & { movedHeading: string; movedHtml: string; notes: string[] })[] = [];
     for (const s of vol.sections) {
-      const split = s.role === 'toc' ? null : splitAtChapterHeadings(s);
+      const split = s.role === 'toc' ? null : splitCached(s);
       if (split) {
         split.forEach((p, i) =>
           pieces.push({
@@ -353,17 +376,26 @@ export interface Audit {
  * in order, with headings that were moved into titles counted where they were.
  */
 export function auditPlan(volumes: Volume[], items: PlanItem[]): Audit {
-  const src = volumes.flatMap((v) => v.sections.flatMap((s) => tokens(htmlToText(s.content))));
-  const out = items.flatMap((it) => [...tokens(it.movedHeading), ...tokens(htmlToText(it.content))]);
+  const join = (parts: string[]) => parts.filter(Boolean).join(' ');
+  const srcParts = volumes.flatMap((v) => v.sections.map((s) => normalised(s.content)));
+  const srcText = join(srcParts);
+  const outText = join(items.flatMap((it) => [tokens(it.movedHeading).join(' '), normalised(it.content)]));
+  const sourceWords = srcParts.reduce((n, t) => n + (t ? memo(countCache, t, () => t.split(' ').length) : 0), 0);
   let mismatchAt: number | undefined;
-  const len = Math.max(src.length, out.length);
-  for (let i = 0; i < len; i++) {
-    if (src[i] !== out[i]) {
-      mismatchAt = i;
-      break;
+  if (srcText !== outText) {
+    // Only when the check fails: find the first word that differs.
+    const src = srcText.split(' ');
+    const out = outText.split(' ');
+    const len = Math.max(src.length, out.length);
+    for (let i = 0; i < len; i++) {
+      if (src[i] !== out[i]) {
+        mismatchAt = i;
+        break;
+      }
     }
   }
-  const setAside = items.filter((it) => !it.include).map((it) => ({ title: it.originalTitle, words: countWords(htmlToText(it.content)) }));
+  const src = { length: sourceWords };
+  const setAside = items.filter((it) => !it.include).map((it) => ({ title: it.originalTitle, words: words(it.content) }));
   const setAsideWords = setAside.reduce((s, x) => s + x.words, 0);
   return {
     ok: mismatchAt === undefined,

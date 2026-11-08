@@ -99,6 +99,19 @@ describe('web-novel layout', () => {
     expect(plan.find((p) => p.title === 'Chapter 3: Ash')!.content).toContain('<h2>Chapter 4: Ember</h2>');
   });
 
+  it('catches a changed or missing word, even after the check has run before', () => {
+    const vols = [bookOne(), bookTwo()];
+    const plan = planLayout(vols, OPTS);
+    expect(auditPlan(vols, plan).ok).toBe(true);
+    const i = plan.findIndex((p) => p.kind === 'chapter');
+    const changed = plan.map((p, k) => (k === i ? { ...p, content: `${p.content}<p>One extra word.</p>` } : p));
+    const bad = auditPlan(vols, changed);
+    expect(bad.ok).toBe(false);
+    expect(bad.mismatchAt).toBeGreaterThan(0);
+    expect(auditPlan(vols, plan.filter((_, k) => k !== i)).ok).toBe(false);
+    expect(auditPlan(vols, plan).ok).toBe(true);
+  });
+
   it('keeps chapter HTML byte-for-byte when it only passes through', () => {
     const vols = [bookTwo()];
     const plan = planLayout(vols, OPTS);

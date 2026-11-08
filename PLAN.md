@@ -19,7 +19,7 @@ Single source of truth for progress. If context resets, resume from here.
 | 1.1 | Brand, motion, haptics, reader extras, goals | ✅ done |
 | 1.2 | Read as web novel or book (paginated, Apple Books-style), reversible | ✅ done |
 | 1.3 | Lore: spoiler-free encyclopaedia (graph + index), name cards in the reader, real reading speed | ✅ done |
-| 1.4 | Smarter Lore: automatic definitions, cleaner names, fairer importance, duplicate merging | ✅ done — 112 unit + 26 end-to-end tests passing |
+| 1.4 | Smarter Lore: automatic definitions, cleaner names, fairer importance, duplicate merging | ✅ done — 113 unit + 26 end-to-end tests passing |
 
 ## Version 1.4 — Smarter Lore
 
@@ -50,6 +50,11 @@ just because they're mentioned less; definitions that appear without the reader 
   saved that chapter as your reading position. They now open a read-only overlay (own chapter load via
   `getChapterAt`, reader theme and typography, matches marked with `findMatches`, step between mentions and between
   the listed chapters) that writes nothing. E2E checks Continue reading still points at the chapter being read.
+- **1.4.2 — fast import of big novels**: typing a title on the Import page re-ran the word check over the whole
+  novel on every keystroke (`ImportPreview` memoised volumes on the whole item). Measured with a 1,500-chapter /
+  6.5M-word TXT in Chrome: typing 17 characters went from over 30 s to 0.12 s; reading the file and planning from
+  4.4 s to 0.6 s. Volumes are now memoised on the files only, and `layout.ts` caches word counts, normalised text
+  and chapter-heading splits per chapter text, so re-checks after an option change take ~0.1 s.
 - Tests: `tests/unit/lore-smarter.test.ts` (contractions, "and", plurals, pronouns, aliases, per-kind tiers,
   definitions, spoiler gating, duplicates); the end-to-end Lore test checks the definition in the card and note.
 

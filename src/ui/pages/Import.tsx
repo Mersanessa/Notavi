@@ -346,7 +346,9 @@ function ImportPreview({
   const images = item.parts.reduce((s, p) => s + (p.parsed.images?.length ?? 0), 0);
   const formats = uniqueStrings(item.parts.map((p) => p.parsed.format.toUpperCase()));
   const sortedNovels = useMemo(() => [...novels].sort((a, b) => a.title.localeCompare(b.title)), [novels]);
-  const vols = useMemo(() => volumesOf(item), [item]);
+  // Only the files decide this, not the title or author: typing must not re-check every word of the novel.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const vols = useMemo(() => volumesOf(item), [item.parts]);
   const moveVolume = (i: number, d: -1 | 1) => {
     const parts = [...item.parts];
     const [x] = parts.splice(i, 1);
