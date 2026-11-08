@@ -251,9 +251,10 @@ used. The EPUB importer no longer silently drops any section; it tags sections (
   On Android the app uses the system TTS engine, which needs a voice installed (Google TTS usually is).
 - **View transitions** need iOS 18+/Chrome 111+; elsewhere screens change instantly.
 - **Lore is heuristic**: names are found from capitalisation and context, so expect some misses and some junk on a
-  real web novel; corrections (rename/merge/retype/hide) are there for that. Descriptions are only the book's own
-  appositive sentences, so many entries have none. Tested on an original fixture story and synthetic scale data,
-  not yet on Lord of Mysteries / Shadow Slave themselves.
+  real web novel; corrections (rename/merge/retype/hide) are there for that, and 1.4 suggests likely duplicates.
+  Every entry gets a composed definition, but the opening line only exists where the book itself describes the
+  name ("X, a …", "X was a …", "X, who …"). Tested on an original fixture story and synthetic scale data; the 1.4
+  fixes were driven by a Lord of Mysteries screenshot, not by running the novel itself.
 - **v2 not started**: reminders and live encrypted sync.
 
 ## Left to do
