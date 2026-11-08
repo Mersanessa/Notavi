@@ -73,7 +73,7 @@ function Appearance() {
         />
       </div>
       <Switch label="Reduce motion" hint="Turns off the opening sequence, transitions and smooth scrolling." checked={app.reduceMotion} onChange={(v) => void setApp({ reduceMotion: v })} />
-      <Switch label="Haptic feedback" hint="A light tap when you press buttons and turn pages. On iPhone this needs iOS 18 or later." checked={app.haptics} onChange={(v) => void setApp({ haptics: v })} />
+      <Switch label="Haptic feedback" hint={platformName() === 'ios' ? 'A light tap when you press buttons and turn pages. Apple blocked this for web apps from iOS 26.5, so on newer iPhones nothing is felt.' : 'A light tap when you press buttons and turn pages.'} checked={app.haptics} onChange={(v) => void setApp({ haptics: v })} />
     </Section>
   );
 }

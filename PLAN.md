@@ -170,7 +170,9 @@ used. The EPUB importer no longer silently drops any section; it tags sections (
 - **Collections can't be reordered** from the UI yet (the data layer supports it; the list sorts by creation).
 - **Fixtures** are short public-domain excerpts typed from memory plus original filler text (Project Gutenberg is
   unreachable from the build sandbox).
-- **Haptics on iPhone** rely on iOS 18's switch tick; older iOS has no web haptics at all. Untested on a device.
+- **No haptics on iPhone from iOS 26.5**: Apple patched the `<input switch>` trick (confirmed by the user: nothing
+  is felt). iOS 18–26.4 still get it. Only a native iOS build could vibrate, which needs a Mac and an Apple
+  developer account.
 - **Read aloud on iPhone** stops when the screen locks (Safari suspends speech); keep the screen on while listening.
   On Android the app uses the system TTS engine, which needs a voice installed (Google TTS usually is).
 - **View transitions** need iOS 18+/Chrome 111+; elsewhere screens change instantly.

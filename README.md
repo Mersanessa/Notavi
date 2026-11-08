@@ -25,8 +25,9 @@ added to the Home Screen).
 - Much more motion: screens flow into each other, covers grow into the novel page, chapters slide in the direction
   you're travelling, highlights sweep in, counters count up. Settings → Appearance → **Reduce motion** turns it
   all off.
-- **Haptic feedback** on buttons, page turns and chapter changes: native on Android; on iPhone it needs iOS 18 or
-  later. Settings → Appearance → **Haptic feedback** turns it off.
+- **Haptic feedback** on buttons, page turns and chapter changes: native in the Android app. On iPhone it only
+  works on iOS 18 to 26.4: Apple closed the loophole web apps used for it in iOS 26.5, and Safari has no other way
+  to vibrate. Settings → Appearance → **Haptic feedback** turns it off.
 - **Read aloud** (🎧 in the reader's bottom bar): reads sentence by sentence, highlights the sentence being read,
   follows along, and carries on into the next chapter. Speed and voice are in reading settings. In the Android app
   this uses Android's own text-to-speech; if nothing is heard, open Android Settings → Accessibility →
