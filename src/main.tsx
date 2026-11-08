@@ -20,6 +20,7 @@ import './styles/base.css';
 import './styles/components.css';
 import './styles/pages.css';
 import './styles/reader.css';
+import './styles/motion.css';
 
 import { App } from './ui/App';
 import { useStore } from './app/store';
@@ -28,8 +29,12 @@ import { WorkerDb, DbLockedError } from './db/client';
 import { requestPersistentStorage } from './platform';
 import { initLock } from './app/lock';
 import { registerServiceWorker } from './app/sw';
+import { initSplash } from './app/splash';
+import { installGlobalHaptics } from './platform/haptics';
 
 applyAppTheme(initialTheme());
+initSplash();
+installGlobalHaptics();
 
 async function boot() {
   try {

@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "mobile",
+  "description": "Haptic feedback on Android (and iOS, should it ever be built natively).",
+  "platforms": ["android", "iOS"],
+  "windows": ["main"],
+  "permissions": ["haptics:default"]
+}

@@ -9,6 +9,7 @@ import { Button } from '../components/Button';
 import { Dialog } from '../components/Dialog';
 import { TextField } from '../components/Fields';
 import { EraseDialog } from './Settings';
+import { Wordmark } from '../components/Wordmark';
 
 export function LockScreen() {
   const config = useLock((s) => s.config);
@@ -52,8 +53,10 @@ export function LockScreen() {
   return (
     <div className="lock" role="dialog" aria-modal="true" aria-label="Notavi is locked">
       <div className="lock__panel">
-        <Lock size={26} aria-hidden className="lock__icon" />
-        <h1 className="lock__title">Notavi is locked</h1>
+        <Wordmark height={40} className="lock__mark" />
+        <h1 className="lock__title">
+          <Lock size={16} aria-hidden className="lock__icon" /> Locked
+        </h1>
         <form
           className="lock__form"
           onSubmit={(e) => {

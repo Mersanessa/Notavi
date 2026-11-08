@@ -85,6 +85,8 @@
   scrollbar-width: thin;
   scrollbar-color: var(--r-rule) transparent;
   outline: none;
+  /* Notavi keeps the reading position itself (by paragraph); the browser's own scroll anchoring would fight it. */
+  overflow-anchor: none;
 }
 .reader__page {
   font-family: var(--r-font);
@@ -862,4 +864,189 @@
 html:has(.reader) {
   scrollbar-gutter: auto;
   overflow: hidden;
+}
+
+/* ================================================================ find bar */
+.reader__find {
+  max-width: calc(100vw - 24px);
+  padding-left: 12px;
+}
+.reader__find-icon {
+  color: var(--r-muted);
+  flex: none;
+}
+.reader__find-input {
+  width: min(220px, 42vw);
+  min-width: 0;
+  height: 34px;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--r-text);
+  font: inherit;
+  outline: none;
+}
+.reader__find-count {
+  min-width: 4ch;
+  font-size: var(--t-xs);
+  color: var(--r-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+@media (max-width: 520px) {
+  .reader__fs {
+    display: none;
+  }
+  .reader__find {
+    left: max(var(--s-3), var(--safe-left));
+  }
+  .reader__find-input {
+    flex: 1;
+    width: auto;
+  }
+}
+
+/* ================================================================ read aloud + auto-scroll dock */
+::highlight(notavi-tts) {
+  background-color: color-mix(in oklab, var(--r-accent, #c8a15a) 28%, transparent);
+}
+.reader-dock {
+  position: fixed;
+  z-index: 12;
+  left: 50%;
+  bottom: calc(22px + var(--safe-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 6px 6px 14px;
+  border-radius: var(--r-pill);
+  background: color-mix(in oklab, var(--r-surface) 97%, transparent);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  border: 1px solid var(--r-rule);
+  box-shadow: var(--shadow-2);
+  font-family: var(--font-ui);
+  animation: dock-in 420ms var(--ease-spring) both;
+  transition: bottom var(--dur-3) var(--ease-out);
+  white-space: nowrap;
+}
+.reader.has-chrome .reader-dock {
+  bottom: calc(72px + var(--safe-bottom));
+}
+@keyframes dock-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 18px) scale(0.94);
+  }
+}
+.reader-dock__main {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--r-accent);
+  color: var(--r-accent-ink);
+  box-shadow: 0 4px 18px color-mix(in oklab, var(--r-accent) 35%, transparent);
+  transition: transform var(--dur-2) var(--ease-spring);
+}
+.reader-dock__main:active {
+  transform: scale(0.9);
+}
+.reader-dock__chip {
+  min-width: 46px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--r-pill);
+  background: var(--r-surface-2);
+  color: var(--r-text);
+  font-weight: 650;
+  font-size: var(--t-sm);
+  font-variant-numeric: tabular-nums;
+}
+.reader-dock__meta {
+  min-width: 5ch;
+  font-size: var(--t-xs);
+  color: var(--r-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.reader-dock__speed {
+  min-width: 2.5ch;
+  text-align: center;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.reader-dock__icon {
+  color: var(--r-accent);
+  margin-right: 4px;
+}
+.reader-dock__wave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 18px;
+  margin-right: 6px;
+}
+.reader-dock__wave i {
+  width: 3px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--r-accent);
+  transition: height var(--dur-2);
+}
+.reader-dock__wave[data-playing] i {
+  animation: wave 1s ease-in-out infinite;
+}
+.reader-dock__wave i:nth-child(2) {
+  animation-delay: -0.25s;
+}
+.reader-dock__wave i:nth-child(3) {
+  animation-delay: -0.5s;
+}
+.reader-dock__wave i:nth-child(4) {
+  animation-delay: -0.75s;
+}
+@keyframes wave {
+  0%,
+  100% {
+    height: 4px;
+  }
+  50% {
+    height: 17px;
+  }
+}
+@media (max-width: 380px) {
+  .reader-dock__meta {
+    display: none;
+  }
+}
+
+/* ================================================================ comfort filter */
+.reader__filter {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+}
+.reader__filter::before,
+.reader__filter::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transition: opacity var(--dur-3);
+}
+.reader__filter::before {
+  background: rgb(255 140 50);
+  mix-blend-mode: multiply;
+  opacity: calc(var(--warm) * 0.34);
+}
+.reader__filter::after {
+  background: #000;
+  opacity: var(--dim);
+}
+.reader.has-dock .reader__page {
+  padding-bottom: calc(170px + var(--safe-bottom));
 }

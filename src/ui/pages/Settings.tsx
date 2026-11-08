@@ -15,6 +15,7 @@ import { Segmented, SelectField, Stepper, Switch, TextField } from '../component
 import { PageHeader } from '../components/misc';
 import { confirmAction } from '../components/confirm';
 import { eraseLibrary } from '../../data/admin';
+import { Wordmark } from '../components/Wordmark';
 
 export function SettingsPage() {
   useDocumentTitle('Settings');
@@ -71,7 +72,8 @@ function Appearance() {
           ]}
         />
       </div>
-      <Switch label="Reduce motion" hint="Turns off page-turn animation and smooth scrolling everywhere." checked={app.reduceMotion} onChange={(v) => void setApp({ reduceMotion: v })} />
+      <Switch label="Reduce motion" hint="Turns off the opening sequence, transitions and smooth scrolling." checked={app.reduceMotion} onChange={(v) => void setApp({ reduceMotion: v })} />
+      <Switch label="Haptic feedback" hint="A light tap when you press buttons and turn pages. On iPhone this needs iOS 18 or later." checked={app.haptics} onChange={(v) => void setApp({ haptics: v })} />
     </Section>
   );
 }
@@ -489,6 +491,7 @@ function About() {
   const storage = useStore((s) => s.storage);
   return (
     <Section id="about" icon={Info} title="About Notavi">
+      <Wordmark height={36} className="about-mark" />
       <p>
         Notavi {APP_VERSION}. A private reader for one person. No accounts, no analytics, no tracking, and no network requests: your library never leaves
         this device unless you export a backup.

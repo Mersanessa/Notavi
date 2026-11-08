@@ -329,7 +329,9 @@ test('searches metadata and full text, and jumps to matches', async ({ page }) =
   await expect(page.locator('.reader__find')).toContainText('2 of 2');
 
   // Within one novel.
-  await page.keyboard.press('Escape'); // closes nothing (no panel) → leaves reader
+  await page.keyboard.press('Escape'); // closes the find bar
+  await expect(page.locator('.reader__find')).toHaveCount(0);
+  await page.keyboard.press('Escape'); // nothing else open → leaves the reader
   await page.getByRole('tab', { name: /Chapters/ }).click();
   await page.getByRole('radio', { name: 'Full text' }).click();
   await page.getByRole('textbox', { name: 'Search chapters' }).fill('Phantom');
@@ -394,7 +396,7 @@ test('locks with a PIN, rejects wrong codes and unlocks', async ({ page, context
   await expect(page.getByText('On, using a PIN.')).toBeVisible();
 
   const again = await restart(context, page);
-  await expect(again.getByRole('heading', { name: 'Notavi is locked' })).toBeVisible();
+  await expect(again.getByRole('heading', { name: 'Locked' })).toBeVisible();
   await expect(again.locator('.rail')).toHaveCount(0); // nothing behind the lock
   await again.getByTestId('unlock-input').fill('1111');
   await again.getByTestId('unlock-btn').click();
@@ -527,4 +529,109 @@ test('pastes several chapters at once and splits them at their headings', async 
   await expect(page.getByTestId('paste-add')).toHaveText('Add 3 chapters');
   await page.getByTestId('paste-add').click();
   await expect(page.locator('.chapter-row__title')).toHaveText(['Chapter 7: The Ferry', 'Chapter 8: Low Tide', 'Chapter 9: The Lighthouse Keeper']);
+});
+
+/* ------------------------------------------------------------------ 1.1: opening, reader extras */
+
+test.describe('with motion', () => {
+  test.use({ reducedMotion: 'no-preference' });
+
+  test('opens with the Notavi splash, then hands over to the app', async ({ page }) => {
+    await page.goto('/');
+    const splash = page.locator('#splash');
+    await expect(splash).toBeVisible();
+    await expect(splash.locator('svg')).toHaveCount(1);
+    await expect(splash).toHaveCount(0, { timeout: 8000 });
+    await expect(page.locator('.rail')).toBeVisible();
+  });
+});
+
+test('finds words inside the chapter from the reader', async ({ page }) => {
+  await importFiles(page, ['christmas-carol-epub2.epub']);
+  await startReading(page, 'A Christmas Carol (excerpt)');
+  await page.keyboard.press('/');
+  await expect(page.getByTestId('find-input')).toBeFocused();
+  await page.getByTestId('find-input').fill('Marley');
+  await expect(page.locator('.reader__find-count')).toHaveText(/^1 of \d+$/);
+  const total = Number((await page.locator('.reader__find-count').textContent())!.split(' of ')[1]);
+  await expect(page.locator('mark.find')).not.toHaveCount(0);
+  await page.getByTestId('find-input').press('Enter');
+  await expect(page.locator('.reader__find-count')).toHaveText(total > 1 ? `2 of ${total}` : `1 of ${total}`);
+  await page.getByTestId('find-input').fill('zzqqxx');
+  await expect(page.locator('.reader__find-count')).toHaveText('No matches');
+  await page.getByTestId('find-input').press('Escape');
+  await expect(page.locator('.reader__find')).toHaveCount(0);
+  await expect(page.locator('mark.find')).toHaveCount(0);
+  await expect(page.getByTestId('reader')).toBeVisible(); // Escape in the box only closed the box
+});
+
+test('reads aloud sentence by sentence and carries on into the next chapter', async ({ page, context }) => {
+  // A stand-in voice: the real ones aren't available to headless browsers.
+  await context.addInitScript(() => {
+    const spoken: string[] = [];
+    (window as unknown as { __spoken: string[] }).__spoken = spoken;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    class Utterance {
+      onend: ((e: unknown) => void) | null = null;
+      onerror: ((e: unknown) => void) | null = null;
+      rate = 1;
+      voice = null;
+      lang = '';
+      constructor(public text: string) {}
+    }
+    Object.defineProperty(window, 'SpeechSynthesisUtterance', { value: Utterance, configurable: true });
+    Object.defineProperty(window, 'speechSynthesis', {
+      configurable: true,
+      value: {
+        getVoices: () => [{ voiceURI: 'test-gb', name: 'Test', lang: 'en-GB', localService: true, default: true }],
+        addEventListener() {},
+        speak(u: Utterance) {
+          spoken.push(u.text);
+          timer = setTimeout(() => u.onend?.({}), 4);
+        },
+        cancel() {
+          clearTimeout(timer);
+        },
+      },
+    });
+  });
+  await importFiles(page, ['christmas-carol-epub2.epub']);
+  await startReading(page, 'A Christmas Carol (excerpt)');
+  const first = await chapterTitle(page).textContent();
+  await page.getByTestId('listen-btn').click();
+  await expect(page.getByTestId('speech-dock')).toBeVisible();
+  const spoken = () => page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken);
+  await expect.poll(async () => (await spoken()).length).toBeGreaterThan(3);
+  expect((await spoken())[0]).toBe(first); // starts with the chapter title
+  expect((await spoken())[1]).not.toContain('\n');
+  // At the end of the chapter it moves on and keeps reading.
+  await expect(chapterTitle(page)).not.toHaveText(first!, { timeout: 20000 });
+  const second = await chapterTitle(page).textContent();
+  await expect.poll(async () => (await spoken()).includes(second!)).toBe(true);
+  await page.getByRole('button', { name: 'Stop reading aloud' }).first().click();
+  await expect(page.getByTestId('speech-dock')).toHaveCount(0);
+});
+
+test('auto-scrolls, and dims and warms the page', async ({ page }) => {
+  await importFiles(page, ['no-headings.txt']);
+  await startReading(page, 'no-headings');
+  await page.getByTestId('autoscroll-btn').click();
+  await expect(page.getByTestId('scroll-dock')).toBeVisible();
+  const top = () => page.locator('.reader__scroll').evaluate((e) => e.scrollTop);
+  await expect.poll(top, { timeout: 5000 }).toBeGreaterThan(10);
+  await page.getByRole('button', { name: 'Pause auto-scroll' }).click();
+  const paused = await top();
+  await page.waitForTimeout(500);
+  expect(await top()).toBe(paused);
+  await page.getByTestId('scroll-dock').getByRole('button', { name: 'Stop auto-scroll' }).click();
+  await expect(page.getByTestId('scroll-dock')).toHaveCount(0);
+
+  await expect(page.getByTestId('reader-filter')).toHaveCount(0);
+  await page.keyboard.press('s');
+  await page.getByRole('button', { name: 'Increase dim the page' }).click();
+  await page.getByRole('button', { name: 'Increase warmth' }).click();
+  const filter = page.getByTestId('reader-filter');
+  await expect(filter).toBeVisible();
+  expect(await filter.getAttribute('style')).toContain('--dim: 0.05');
+  expect(await filter.getAttribute('style')).toContain('--warm: 0.1');
 });

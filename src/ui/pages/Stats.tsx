@@ -8,6 +8,7 @@ import { getStats, type DayActivity, type MonthActivity } from '../../data/stats
 import { formatDuration, formatNumber } from '../../lib/text';
 import { EmptyState, PageHeader, SectionHeader, Spinner } from '../components/misc';
 import { Segmented } from '../components/Fields';
+import { CountUp } from '../components/CountUp';
 
 /** Stats come only from what was actually measured while reading; nothing is estimated or invented. */
 export default function StatsPage() {
@@ -24,20 +25,20 @@ export default function StatsPage() {
       <PageHeader title="Stats" lead="Measured from your actual reading on this device: time counts only while a chapter is open and you're active." />
       <div className="stat-tiles">
         <Tile value={formatDuration(s.readingMs)} label="Total reading time" />
-        <Tile value={formatNumber(s.chaptersRead)} label="Chapters read" />
+        <Tile value={<CountUp value={s.chaptersRead} format={(n) => formatNumber(Math.round(n))} />} label="Chapters read" />
         <Tile
           value={
             <>
-              <Flame size={20} aria-hidden className="tile__flame" /> {s.currentStreak}
+              <Flame size={20} aria-hidden className="tile__flame" /> <CountUp value={s.currentStreak} />
             </>
           }
           label={`Day streak (longest ${s.longestStreak})`}
         />
         <Tile value={formatDuration(s.readingMsThisWeek)} label="This week" />
-        <Tile value={formatNumber(s.novels)} label="Novels in library" />
-        <Tile value={`${s.byStatus.completed}`} label="Completed" />
-        <Tile value={`${s.byStatus.reading}`} label="Reading now" />
-        <Tile value={formatNumber(s.annotations)} label="Bookmarks & notes" />
+        <Tile value={<CountUp value={s.novels} />} label="Novels in library" />
+        <Tile value={<CountUp value={s.byStatus.completed} />} label="Completed" />
+        <Tile value={<CountUp value={s.byStatus.reading} />} label="Reading now" />
+        <Tile value={<CountUp value={s.annotations} />} label="Bookmarks & notes" />
       </div>
 
       {!hasActivity ? (

@@ -1,6 +1,8 @@
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
+import { useSlidingIndicator } from './components/Fields';
 import { ChartNoAxesColumn, Folders, House, LibraryBig, Search, Settings } from 'lucide-react';
 import { href, routes, useRoute } from '../app/router';
+import { Wordmark } from './components/Wordmark';
 
 const NAV = [
   { to: routes.home(), match: (p: string) => p === '/', label: 'Home', icon: House, tab: true },
@@ -11,28 +13,29 @@ const NAV = [
   { to: routes.settings(), match: (p: string) => p.startsWith('/settings'), label: 'Settings', icon: Settings, tab: true },
 ];
 
-function Wordmark() {
+function RailMark() {
   return (
-    <a className="wordmark" href={href('/')} aria-label="Notavi home">
-      <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden>
-        <rect x="5" y="4" width="18" height="24" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
-        <path d="M9 4v24" stroke="currentColor" strokeWidth="1.6" />
-        <path d="M17 4v11l2.5-2 2.5 2V4" fill="var(--brass)" stroke="var(--brass)" strokeWidth="1.2" strokeLinejoin="round" />
-      </svg>
+    <a className="rail-mark" href={href('/')} aria-label="Notavi home">
+      <Wordmark height={17} title="Notavi" />
     </a>
   );
 }
 
 export function Shell({ children }: { children: ReactNode }) {
   const { path } = useRoute();
+  const railRef = useRef<HTMLUListElement>(null);
+  const tabRef = useRef<HTMLElement>(null);
+  const railInd = useSlidingIndicator(railRef, '.rail__item.is-on', [path]);
+  const tabInd = useSlidingIndicator(tabRef, '.tabbar__item.is-on', [path]);
   return (
     <div className="shell">
       <a className="skip-link" href="#main">
         Skip to content
       </a>
       <nav className="rail" aria-label="Main">
-        <Wordmark />
-        <ul className="rail__list">
+        <RailMark />
+        <ul className="rail__list" ref={railRef}>
+          <span className="slider-indicator rail__indicator" style={railInd} aria-hidden />
           {NAV.map((n) => {
             const on = n.match(path);
             return (
@@ -49,7 +52,8 @@ export function Shell({ children }: { children: ReactNode }) {
       <main id="main" className="shell__main" tabIndex={-1}>
         {children}
       </main>
-      <nav className="tabbar" aria-label="Main">
+      <nav className="tabbar" aria-label="Main" ref={tabRef}>
+        <span className="slider-indicator tabbar__indicator" style={tabInd} aria-hidden />
         {NAV.filter((n) => n.tab).map((n) => {
           const on = n.match(path) || (n.label === 'Library' && path.startsWith('/collections'));
           return (

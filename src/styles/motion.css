@@ -1,0 +1,381 @@
+/*
+ * Motion. Everything here answers something you did (press, open, finish) or
+ * marks arrival. All of it switches off with "Reduce motion" (app setting or system).
+ */
+
+/* ---------------------------------------------------------------- screen transitions */
+.rail {
+  view-transition-name: rail;
+}
+.tabbar {
+  view-transition-name: tabbar;
+}
+::view-transition-old(root) {
+  animation: vt-out 200ms var(--ease) both;
+}
+::view-transition-new(root) {
+  animation: vt-in 420ms var(--ease-out) both;
+}
+[data-nav='back']::view-transition-new(root) {
+  animation-name: vt-in-back;
+}
+::view-transition-group(hero-cover) {
+  animation-duration: 520ms;
+  animation-timing-function: var(--ease-out);
+}
+::view-transition-old(hero-cover),
+::view-transition-new(hero-cover) {
+  animation-duration: 520ms;
+}
+@keyframes vt-out {
+  to {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+}
+@keyframes vt-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+@keyframes vt-in-back {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+@supports not (view-transition-name: none) {
+  .page {
+    animation: vt-in 380ms var(--ease-out) both;
+  }
+}
+
+/* ---------------------------------------------------------------- presses */
+.btn,
+.icon-btn,
+.chip--button,
+.segmented__opt,
+.keypad__key,
+.theme-swatch,
+.font-option,
+.swatch,
+.float-bar__btn,
+.chapter-end__next,
+.tabbar__item,
+.rail__item {
+  transition:
+    transform 260ms var(--ease-spring),
+    background var(--dur-1),
+    color var(--dur-1),
+    border-color var(--dur-1),
+    box-shadow var(--dur-2);
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.965);
+  transition-duration: 80ms;
+}
+.icon-btn:active:not(:disabled),
+.swatch:active,
+.float-bar__btn:active {
+  transform: scale(0.86);
+  transition-duration: 80ms;
+}
+.chip--button:active,
+.segmented__opt:active,
+.theme-swatch:active,
+.font-option:active,
+.keypad__key:active,
+.tabbar__item:active,
+.rail__item:active {
+  transform: scale(0.94);
+  transition-duration: 80ms;
+}
+.btn--primary {
+  box-shadow: 0 0 0 0 transparent;
+}
+.btn--primary:hover:not(:disabled) {
+  box-shadow: 0 6px 22px -8px color-mix(in oklab, var(--brass) 70%, transparent);
+}
+
+/* Favourite: the heart pops and throws a small ring. */
+.icon-btn--heart.is-active {
+  position: relative;
+}
+.icon-btn--heart.is-active svg {
+  animation: heart-pop 520ms var(--ease-spring);
+}
+.icon-btn--heart.is-active::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  border: 2px solid var(--oxblood);
+  opacity: 0;
+  animation: ring-out 600ms var(--ease-out);
+  pointer-events: none;
+}
+@keyframes heart-pop {
+  0% {
+    transform: scale(0.6);
+  }
+  45% {
+    transform: scale(1.32);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@keyframes ring-out {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+
+/* Bookmark ribbon drops in. */
+.icon-btn--brass.is-active svg {
+  animation: ribbon-drop 520ms var(--ease-spring);
+}
+@keyframes ribbon-drop {
+  from {
+    transform: translateY(-9px) scaleY(0.6);
+    opacity: 0;
+  }
+}
+
+/* ---------------------------------------------------------------- arrivals */
+.ribbon__fill {
+  transform-origin: left;
+  animation: ribbon-grow 900ms var(--ease-out) both;
+}
+@keyframes ribbon-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.book-grid > *,
+.shelf > *,
+.collection-grid > * {
+  animation: rise-in 520ms var(--ease-out) both;
+}
+.book-grid > :nth-child(2),
+.shelf > :nth-child(2),
+.collection-grid > :nth-child(2) {
+  animation-delay: 40ms;
+}
+.book-grid > :nth-child(3),
+.shelf > :nth-child(3),
+.collection-grid > :nth-child(3) {
+  animation-delay: 80ms;
+}
+.book-grid > :nth-child(4),
+.shelf > :nth-child(4),
+.collection-grid > :nth-child(4) {
+  animation-delay: 120ms;
+}
+.book-grid > :nth-child(5),
+.shelf > :nth-child(5) {
+  animation-delay: 160ms;
+}
+.book-grid > :nth-child(6),
+.shelf > :nth-child(6) {
+  animation-delay: 200ms;
+}
+.book-grid > :nth-child(n + 7),
+.shelf > :nth-child(n + 7) {
+  animation-delay: 240ms;
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+/* Books feel like objects: a slight lift and turn under the finger or pointer. */
+.book-card__cover,
+.continue__lead .cover,
+.continue-mini .cover {
+  transition:
+    transform 420ms var(--ease-spring),
+    box-shadow 420ms var(--ease-out);
+  transform-origin: 30% 50%;
+}
+@media (hover: hover) {
+  .book-card:hover .book-card__cover {
+    transform: perspective(700px) translateY(-6px) rotateY(-9deg);
+  }
+  .book-card:hover .cover {
+    box-shadow: 14px 22px 30px -16px #000c, 0 2px 4px #0007;
+  }
+  .continue__lead:hover .cover {
+    transform: perspective(700px) rotateY(-10deg) translateX(4px);
+  }
+}
+.book-card:active .book-card__cover {
+  transform: scale(0.96);
+  transition-duration: 120ms;
+}
+
+/* The continue card's lamplight follows the pointer (set by JS as --mx/--my). */
+.continue__lead {
+  background:
+    radial-gradient(70% 90% at var(--mx, 0%) var(--my, 0%), color-mix(in oklab, var(--brass) 11%, transparent), transparent 60%),
+    var(--surface);
+  transition:
+    border-color var(--dur-2),
+    transform 320ms var(--ease-spring);
+}
+.continue__lead:active {
+  transform: scale(0.99);
+}
+
+/* Sliding indicators (positioned by JS). */
+.slider-indicator {
+  position: absolute;
+  pointer-events: none;
+  transition:
+    transform 420ms var(--ease-spring),
+    width 420ms var(--ease-spring),
+    height 420ms var(--ease-spring),
+    opacity var(--dur-2);
+}
+
+/* Switches overshoot a little. */
+.switch__thumb {
+  transition:
+    transform 380ms var(--ease-spring),
+    background var(--dur-2),
+    width 200ms var(--ease);
+}
+.switch:active .switch__thumb {
+  width: 24px;
+}
+.switch.is-on:active .switch__thumb {
+  transform: translateX(14px);
+}
+
+/* Dialogs and sheets settle with a touch of spring. */
+.dialog {
+  animation: rise 420ms var(--ease-spring);
+}
+.toast {
+  animation: toast-in 520ms var(--ease-spring);
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+}
+.menu {
+  transform-origin: top right;
+  animation: menu-in 260ms var(--ease-spring);
+}
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(-4px);
+  }
+}
+
+/* Empty-state icons breathe slowly. */
+.empty__icon {
+  animation: breathe 3.2s ease-in-out infinite;
+}
+@keyframes breathe {
+  50% {
+    transform: translateY(-3px);
+    opacity: 0.75;
+  }
+}
+
+/* Streak flame flickers. */
+.summary__icon,
+.tile__flame {
+  animation: flicker 2.6s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+@keyframes flicker {
+  0%,
+  100% {
+    transform: scale(1) rotate(0);
+  }
+  30% {
+    transform: scale(1.08, 0.96) rotate(-3deg);
+  }
+  60% {
+    transform: scale(0.96, 1.06) rotate(2deg);
+  }
+}
+
+/* ---------------------------------------------------------------- reader */
+.reader__page.is-entering-next {
+  animation: chapter-next 380ms var(--ease-out) both;
+}
+.reader__page.is-entering-prev {
+  animation: chapter-prev 380ms var(--ease-out) both;
+}
+@keyframes chapter-next {
+  from {
+    opacity: 0;
+    transform: translateX(36px);
+  }
+}
+@keyframes chapter-prev {
+  from {
+    opacity: 0;
+    transform: translateX(-36px);
+  }
+}
+.reading-text mark.hl.is-new {
+  background-size: 0% 100%;
+  animation: hl-sweep 620ms var(--ease-out) forwards;
+  background-image: linear-gradient(color-mix(in oklab, var(--hl) var(--r-hl-mix), transparent), color-mix(in oklab, var(--hl) var(--r-hl-mix), transparent));
+  background-color: transparent;
+  background-repeat: no-repeat;
+}
+@keyframes hl-sweep {
+  to {
+    background-size: 100% 100%;
+  }
+}
+.chapter-end__next {
+  position: relative;
+  overflow: hidden;
+}
+.chapter-end__next::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, color-mix(in oklab, var(--r-accent) 18%, transparent) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: glint 2.8s 0.6s var(--ease) infinite;
+  pointer-events: none;
+}
+@keyframes glint {
+  0%,
+  60% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+.reader__top,
+.reader__bottom {
+  transition:
+    transform 380ms var(--ease-spring),
+    opacity var(--dur-3);
+}
+
+/* Count-up numbers keep their width steady. */
+.count-up {
+  font-variant-numeric: tabular-nums;
+}

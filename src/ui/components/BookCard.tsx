@@ -9,11 +9,18 @@ function chapterCount(n: NovelSummary) {
   return `${n.chapterCount} ${n.chapterCount === 1 ? 'chapter' : 'chapters'}`;
 }
 
+/** Give the tapped card's cover the shared transition name, so it glides into the novel page. */
+export function heroCover(e: React.MouseEvent<HTMLElement>) {
+  document.querySelectorAll<HTMLElement>('[style*="view-transition-name"]').forEach((el) => (el.style.viewTransitionName = ''));
+  const cover = e.currentTarget.querySelector<HTMLElement>('.cover');
+  if (cover) cover.style.viewTransitionName = 'hero-cover';
+}
+
 /** Grid card: the cover does most of the talking. */
 export function BookCard({ novel, to }: { novel: NovelSummary; to?: string }) {
   const started = novel.percent > 0;
   return (
-    <a className="book-card" href={href(to ?? routes.novel(novel.id))} data-testid="book-card">
+    <a className="book-card" href={href(to ?? routes.novel(novel.id))} data-testid="book-card" onClick={heroCover}>
       <div className="book-card__cover">
         <Cover coverId={novel.coverId} title={novel.title} author={novel.author} size="md" />
         {started && <Ribbon value={novel.percent} className="book-card__ribbon" label={`${Math.round(novel.percent * 100)}% read`} />}
@@ -40,7 +47,7 @@ export function BookCard({ novel, to }: { novel: NovelSummary; to?: string }) {
 export function BookRow({ novel }: { novel: NovelSummary }) {
   const pct = Math.round(novel.percent * 100);
   return (
-    <a className="book-row" href={href(routes.novel(novel.id))} data-testid="book-row">
+    <a className="book-row" href={href(routes.novel(novel.id))} data-testid="book-row" onClick={heroCover}>
       <Cover coverId={novel.coverId} title={novel.title} size="xs" />
       <div className="book-row__main">
         <span className="book-row__title">

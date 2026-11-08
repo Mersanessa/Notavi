@@ -1,4 +1,26 @@
 /* ================================================================ home */
+.home-brand {
+  display: none;
+  color: var(--text);
+  margin-bottom: var(--s-5);
+}
+@media (max-width: 760px) {
+  .home-brand {
+    display: block;
+  }
+}
+.welcome__mark {
+  color: var(--text);
+  margin-bottom: var(--s-8);
+}
+.lock__mark {
+  color: var(--text);
+  margin-bottom: var(--s-2);
+}
+.about-mark {
+  color: var(--text);
+  margin-bottom: var(--s-3);
+}
 .home-head {
   display: flex;
   justify-content: space-between;
@@ -1393,9 +1415,13 @@ button.heatmap__cell:focus-visible {
   color: var(--brass);
 }
 .lock__title {
-  font-family: var(--font-display);
-  font-weight: 500;
-  font-size: var(--t-2xl);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: var(--t-md);
+  color: var(--text-2);
 }
 .lock__form {
   width: 100%;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, BookOpen, Bookmark, CheckCheck, Copy, ExternalLink, FolderPlus, Heart, Highlighter, ImagePlus, ImageOff, ListChecks, MoreHorizontal,
   NotebookPen, Pencil, Plus, RotateCcw, Search, StickyNote, Trash2, X, ArrowUpDown, Circle, CircleCheck, ClipboardPaste,
@@ -24,7 +24,7 @@ import { EmptyState, Ribbon, Spinner, StatusBadge } from '../components/misc';
 import { Dialog } from '../components/Dialog';
 import { confirmAction } from '../components/confirm';
 import { ReorderList } from '../components/ReorderList';
-import { Segmented, TextField } from '../components/Fields';
+import { Segmented, TextField, useSlidingIndicator } from '../components/Fields';
 
 type Tab = 'about' | 'chapters' | 'notes';
 
@@ -35,6 +35,8 @@ export function NovelPage({ novelId }: { novelId: string }) {
   const fallback = useAsync(() => (fromStore ? Promise.resolve(fromStore) : getNovel(db(), novelId)), [novelId, !!fromStore]);
   const novel = fromStore ?? fallback.data;
   useDocumentTitle(novel?.title);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const tabInd = useSlidingIndicator(tabsRef, '.tabs__tab.is-on', [tab, novel?.chapterCount]);
 
   if (!novel) {
     if (fallback.loading) return <div className="page"><Spinner /></div>;
@@ -54,7 +56,8 @@ export function NovelPage({ novelId }: { novelId: string }) {
         <ArrowLeft size={18} aria-hidden /> Back
       </button>
       <NovelHeader novel={novel} />
-      <div className="tabs" role="tablist" aria-label="Novel sections">
+      <div className="tabs" role="tablist" aria-label="Novel sections" ref={tabsRef}>
+        <span className="slider-indicator tabs__indicator" style={tabInd} aria-hidden />
         {(
           [
             ['about', 'About'],
@@ -128,7 +131,7 @@ function NovelHeader({ novel }: { novel: NovelSummary }) {
 
   return (
     <section className="novel-head">
-      <button type="button" className="novel-head__cover" onClick={changeCover} aria-label={novel.coverId ? 'Change cover' : 'Add cover'}>
+      <button type="button" className="novel-head__cover" onClick={changeCover} aria-label={novel.coverId ? 'Change cover' : 'Add cover'} style={{ viewTransitionName: 'hero-cover' }}>
         <Cover coverId={novel.coverId} title={novel.title} author={novel.author} size="xl" />
       </button>
       <div className="novel-head__body">

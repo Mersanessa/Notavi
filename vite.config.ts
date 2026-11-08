@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { readFileSync } from 'node:fs';
 
 // NOTAVI_BASE lets the PWA live under a sub-path (e.g. GitHub Pages: /notavi/).
 const base = process.env.NOTAVI_BASE ?? '/';
@@ -21,11 +22,20 @@ const CSP = [
   "form-action 'none'",
 ].join('; ');
 
+// The opening sequence lives in the HTML itself so it paints instantly, before any script loads.
+const splashHtml = readFileSync('scripts/splash.html', 'utf8');
+const splashCss = readFileSync('scripts/splash.css', 'utf8');
+
 export default defineConfig({
   base,
   clearScreen: false,
   plugins: [
     react(),
+    {
+      name: 'notavi-splash',
+      transformIndexHtml: (html: string) =>
+        html.replace('</head>', `<style>${splashCss}</style>\n  </head>`).replace('<body>', `<body>\n    ${splashHtml}`),
+    },
     {
       // Tauri builds get their CSP from tauri.conf.json (Tauri adds its own nonces), so only the PWA gets a meta CSP.
       name: 'notavi-csp',

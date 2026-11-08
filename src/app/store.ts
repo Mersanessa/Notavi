@@ -4,9 +4,20 @@ import type { Collection, NovelSummary } from '../data/model';
 import { listNovels } from '../data/novels';
 import { listCollections } from '../data/collections';
 import { getSetting, setSetting } from '../data/settings';
+import { haptic, setHapticsEnabled } from '../platform/haptics';
 import { DEFAULT_APP, DEFAULT_READER, applyAppTheme, type AppPrefs, type ReaderPrefs } from './prefs';
 
 let currentDb: Db | null = null;
+
+/** The splash runs before the database opens, so it reads the motion preference from localStorage. */
+function mirrorMotion(reduce: boolean) {
+  document.documentElement.dataset.motion = reduce ? 'reduce' : 'full';
+  try {
+    localStorage.setItem('notavi.motion', reduce ? 'reduce' : 'full');
+  } catch {
+    /* ignore */
+  }
+}
 
 /** The open library database. Available once the app has booted. */
 export function db(): Db {
@@ -65,6 +76,8 @@ export const useStore = create<State>((set, get) => ({
       listCollections(database),
     ]);
     applyAppTheme(app.theme);
+    mirrorMotion(app.reduceMotion);
+    setHapticsEnabled(app.haptics);
     set({ status: 'ready', storage, app, reader, novels, collections });
   },
 
@@ -84,6 +97,8 @@ export const useStore = create<State>((set, get) => ({
     const app = { ...get().app, ...patch };
     set({ app });
     if (patch.theme) applyAppTheme(app.theme);
+    if (patch.reduceMotion !== undefined) mirrorMotion(app.reduceMotion);
+    if (patch.haptics !== undefined) setHapticsEnabled(app.haptics);
     await setSetting(db(), 'app', app);
   },
 
@@ -95,6 +110,8 @@ export const useStore = create<State>((set, get) => ({
 
   toast(t) {
     const toast: Toast = typeof t === 'string' ? { id: ++toastSeq, message: t } : { ...t, id: ++toastSeq };
+    if (toast.tone === 'success') haptic('success');
+    else if (toast.tone === 'error') haptic('error');
     set((s) => ({ toasts: [...s.toasts.slice(-2), toast] }));
     setTimeout(() => get().dismissToast(toast.id), toast.duration ?? (toast.action ? 7000 : 3600));
   },

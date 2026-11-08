@@ -13,6 +13,8 @@ export default defineConfig({
     baseURL: 'http://localhost:4173',
     launchOptions: { executablePath: chrome },
     trace: 'retain-on-failure',
+    // The opening animation and transitions are covered by their own test; keep the rest quick.
+    reducedMotion: 'reduce',
   },
   webServer: {
     command: 'npx vite preview --port 4173 --strictPort',

@@ -13,6 +13,8 @@ import { Cover } from '../components/Cover';
 import { Button, IconButton } from '../components/Button';
 import { Dialog } from '../components/Dialog';
 import { EmptyState, Ribbon, SectionHeader } from '../components/misc';
+import { Wordmark } from '../components/Wordmark';
+import { CountUp } from '../components/CountUp';
 
 const DAY = 86400000;
 
@@ -53,6 +55,7 @@ export function HomePage() {
     return (
       <div className="page page--home">
         <div className="welcome">
+          <Wordmark height={44} className="welcome__mark" />
           <h1 className="welcome__title">Your library is empty</h1>
           <p className="welcome__lead">
             Import novels you own as EPUB, TXT, HTML or Markdown files, or add one by hand. Everything stays on this device.
@@ -138,7 +141,7 @@ export function HomePage() {
               <div className="summary__item">
                 <span className="summary__value">
                   <Flame size={20} aria-hidden className="summary__icon" />
-                  {stats.data.currentStreak}
+                  <CountUp value={stats.data.currentStreak} />
                 </span>
                 <span className="summary__label">day streak</span>
               </div>
@@ -147,11 +150,15 @@ export function HomePage() {
                 <span className="summary__label">read this week</span>
               </div>
               <div className="summary__item">
-                <span className="summary__value">{formatNumber(stats.data.chaptersRead)}</span>
+                <span className="summary__value">
+                  <CountUp value={stats.data.chaptersRead} format={(n) => formatNumber(Math.round(n))} />
+                </span>
                 <span className="summary__label">chapters read</span>
               </div>
               <div className="summary__item">
-                <span className="summary__value">{stats.data.byStatus.completed}</span>
+                <span className="summary__value">
+                  <CountUp value={stats.data.byStatus.completed} />
+                </span>
                 <span className="summary__label">novels completed</span>
               </div>
             </div>
@@ -162,6 +169,9 @@ export function HomePage() {
 
   return (
     <div className="page page--home">
+      <div className="home-brand">
+        <Wordmark height={22} />
+      </div>
       <header className="home-head">
         <h1 className="home-head__title">{greeting()}</h1>
         <div className="home-head__actions">
@@ -189,7 +199,16 @@ function ContinueReading({ list, wpm }: { list: NovelSummary[]; wpm: number }) {
     <section className="home-section" aria-labelledby="h-continue">
       <SectionHeader id="h-continue" title="Continue reading" />
       <div className="continue">
-        <a className="continue__lead" href={href(routes.read(lead.id))} data-testid="continue-lead">
+        <a
+          className="continue__lead"
+          href={href(routes.read(lead.id))}
+          data-testid="continue-lead"
+          onPointerMove={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            e.currentTarget.style.setProperty('--mx', `${((e.clientX - r.left) / r.width) * 100}%`);
+            e.currentTarget.style.setProperty('--my', `${((e.clientY - r.top) / r.height) * 100}%`);
+          }}
+        >
           <Cover coverId={lead.coverId} title={lead.title} author={lead.author} size="lg" />
           <div className="continue__body">
             <span className="continue__title">{lead.title}</span>

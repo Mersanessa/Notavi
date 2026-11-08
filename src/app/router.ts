@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { flushSync } from 'react-dom';
 
 /**
  * Minimal hash router. Hash routing needs no server configuration, so it works
@@ -20,12 +21,37 @@ let current = parse();
 const listeners = new Set<() => void>();
 // In-app history so "back" never leaves the app or lands somewhere unexpected.
 const stack: string[] = [location.hash || '#/'];
+
+function motionAllowed() {
+  return document.documentElement.dataset.motion !== 'reduce' && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+/** Animate between screens with the View Transitions API when it's available and worth it. */
+function commit(next: Route, direction: 'forward' | 'back') {
+  const prev = current;
+  const reading = (r: Route) => r.segments[0] === 'read';
+  const samePage = prev.path === next.path;
+  const apply = () => {
+    current = next;
+    listeners.forEach((l) => l());
+  };
+  const vt = (document as Document & { startViewTransition?: (cb: () => void) => unknown }).startViewTransition;
+  if (!vt || samePage || (reading(prev) && reading(next)) || !motionAllowed() || document.visibilityState !== 'visible') {
+    apply();
+    return;
+  }
+  document.documentElement.dataset.nav = direction;
+  vt.call(document, () => flushSync(apply));
+}
+
 window.addEventListener('hashchange', () => {
   const h = location.hash || '#/';
-  if (stack.length > 1 && stack[stack.length - 2] === h) stack.pop();
-  else if (stack[stack.length - 1] !== h) stack.push(h);
-  current = parse();
-  listeners.forEach((l) => l());
+  let direction: 'forward' | 'back' = 'forward';
+  if (stack.length > 1 && stack[stack.length - 2] === h) {
+    stack.pop();
+    direction = 'back';
+  } else if (stack[stack.length - 1] !== h) stack.push(h);
+  commit(parse(), direction);
 });
 
 export function useRoute(): Route {
@@ -44,8 +70,7 @@ export function navigate(to: string, opts: { replace?: boolean } = {}) {
   if (opts.replace) {
     history.replaceState(history.state, '', hash);
     stack[stack.length - 1] = hash;
-    current = parse();
-    listeners.forEach((l) => l());
+    commit(parse(), 'forward');
   } else {
     location.hash = hash;
   }

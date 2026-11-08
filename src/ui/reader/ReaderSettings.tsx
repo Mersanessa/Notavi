@@ -1,8 +1,15 @@
+import { useEffect, useState } from 'react';
 import { RotateCcw, X } from 'lucide-react';
 import { useStore } from '../../app/store';
 import { DEFAULT_READER, READER_FONTS, READER_THEMES, type ReaderPrefs } from '../../app/prefs';
 import { IconButton, Button } from '../components/Button';
-import { Segmented, Stepper, Switch } from '../components/Fields';
+import { Segmented, SelectField, Stepper, Switch } from '../components/Fields';
+import { listVoices, speechSupported } from './speech';
+
+/** British voices first (then other English), the rest alphabetically. */
+function rankVoice(v: SpeechSynthesisVoice) {
+  return v.lang === 'en-GB' ? 0 : v.lang.startsWith('en') ? 1 : 2;
+}
 
 /**
  * Typography and behaviour settings. Non-modal: the chapter stays visible
@@ -12,6 +19,10 @@ export function ReaderSettings({ onClose }: { onClose: () => void }) {
   const r = useStore((s) => s.reader);
   const set = useStore((s) => s.setReader);
   const upd = (p: Partial<ReaderPrefs>) => void set(p);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  useEffect(() => {
+    void listVoices().then((v) => setVoices([...v].sort((a, b) => rankVoice(a) - rankVoice(b) || a.name.localeCompare(b.name))));
+  }, []);
 
   return (
     <aside className="reader-panel reader-panel--settings" aria-label="Reading settings" data-notap>
@@ -72,6 +83,27 @@ export function ReaderSettings({ onClose }: { onClose: () => void }) {
         </section>
 
         <section className="rs-section">
+          <h3 className="rs-title">Comfort</h3>
+          <Stepper label="Dim the page" value={r.dim} min={0} max={0.7} step={0.05} format={(v) => (v ? `${Math.round(v * 100)}%` : 'Off')} onChange={(v) => upd({ dim: Number(v.toFixed(2)) })} />
+          <Stepper label="Warmth" value={r.warmth} min={0} max={1} step={0.1} format={(v) => (v ? `${Math.round(v * 100)}%` : 'Off')} onChange={(v) => upd({ warmth: Number(v.toFixed(1)) })} />
+          <Switch label="Warm the page at night" hint="Between 9 pm and 6 am the page takes on a gentle amber tint, even if Warmth is off." checked={r.warmAtNight} onChange={(v) => upd({ warmAtNight: v })} />
+        </section>
+
+        {speechSupported() && (
+          <section className="rs-section">
+            <h3 className="rs-title">Read aloud</h3>
+            <SelectField
+              label="Voice"
+              value={r.ttsVoice ?? ''}
+              onChange={(v) => upd({ ttsVoice: v || null })}
+              options={[{ value: '', label: 'Automatic (matches the book’s language)' }, ...voices.map((v) => ({ value: v.voiceURI, label: `${v.name} · ${v.lang}${v.localService ? '' : ' · online'}` }))]}
+              hint="Voices come from your device and work offline unless marked ‘online’."
+            />
+            <Stepper label="Speaking speed" value={r.ttsRate} min={0.5} max={2.5} step={0.1} format={(v) => `${v.toFixed(1)}×`} onChange={(v) => upd({ ttsRate: Number(v.toFixed(1)) })} />
+          </section>
+        )}
+
+        <section className="rs-section">
           <h3 className="rs-title">Behaviour</h3>
           <Switch label="Tap edges to turn pages" hint="Tap the left or right quarter of the screen to move a screen up or down." checked={r.tapToTurn} onChange={(v) => upd({ tapToTurn: v })} />
           <Switch label="Swipe sideways to change chapter" checked={r.swipeChapters} onChange={(v) => upd({ swipeChapters: v })} />
@@ -81,7 +113,7 @@ export function ReaderSettings({ onClose }: { onClose: () => void }) {
           <Stepper label="Reading speed" value={r.wpm} min={100} max={600} step={10} format={(v) => `${v} wpm`} onChange={(v) => upd({ wpm: v })} />
         </section>
 
-        <Button variant="ghost" icon={RotateCcw} onClick={() => upd({ ...DEFAULT_READER, theme: r.theme })}>
+        <Button variant="ghost" icon={RotateCcw} onClick={() => upd({ ...DEFAULT_READER, theme: r.theme, ttsVoice: r.ttsVoice, ttsRate: r.ttsRate, autoScrollSpeed: r.autoScrollSpeed, dim: r.dim, warmth: r.warmth, warmAtNight: r.warmAtNight })}>
           Reset text and layout
         </Button>
       </div>

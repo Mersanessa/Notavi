@@ -3,6 +3,7 @@ import { useRoute, navigate, routes } from '../app/router';
 import { useStore } from '../app/store';
 import { useLock } from '../app/lock';
 import { Shell } from './Shell';
+import { Wordmark } from './components/Wordmark';
 import { Toasts, Spinner } from './components/misc';
 import { ConfirmHost } from './components/confirm';
 import { LockScreen } from './pages/LockScreen';
@@ -17,6 +18,7 @@ import { SettingsPage } from './pages/Settings';
 import { ChapterEditorPage } from './pages/ChapterEditor';
 import { Reader } from './reader/Reader';
 import { readFiles } from '../platform';
+import { dismissSplash } from '../app/splash';
 
 const StatsPage = lazy(() => import('./pages/Stats'));
 
@@ -103,18 +105,19 @@ export function App() {
   const locked = useLock((s) => s.locked);
   const { segments } = useRoute();
   useGlobalDrop();
+  useEffect(() => {
+    if (status !== 'booting') dismissSplash();
+  }, [status]);
 
   if (status === 'booting') {
     return (
-      <div className="boot" aria-busy="true">
-        <span className="boot__mark">Notavi</span>
-      </div>
+      <div className="boot" aria-busy="true" />
     );
   }
   if (status === 'locked-elsewhere' || status === 'error') {
     return (
       <div className="boot boot--error" role="alert">
-        <span className="boot__mark">Notavi</span>
+        <Wordmark height={40} />
         <p className="boot__msg">{error}</p>
         {status === 'locked-elsewhere' ? (
           <p className="boot__hint">Close the other tab or window, then reload this one.</p>

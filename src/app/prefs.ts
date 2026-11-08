@@ -38,6 +38,15 @@ export interface ReaderPrefs {
   showStatus: boolean;
   smoothScroll: boolean;
   wpm: number;
+  /** Read aloud speed (1 = the voice's normal pace) and chosen voice. */
+  ttsRate: number;
+  ttsVoice: string | null;
+  /** Auto-scroll speed, in tenths of a line per second. */
+  autoScrollSpeed: number;
+  /** Comfort filters: 0–0.7 darkening, 0–1 warmth; optionally warm the page automatically at night. */
+  dim: number;
+  warmth: number;
+  warmAtNight: boolean;
 }
 
 /** Defaults mirror the reading feel the user is used to: Nunito Sans with airy line spacing. */
@@ -59,6 +68,12 @@ export const DEFAULT_READER: ReaderPrefs = {
   showStatus: true,
   smoothScroll: true,
   wpm: 230,
+  ttsRate: 1,
+  ttsVoice: null,
+  autoScrollSpeed: 5,
+  dim: 0,
+  warmth: 0,
+  warmAtNight: false,
 };
 
 export type HomeSection = 'continue' | 'recentChapters' | 'recentlyAdded' | 'recentlyUpdated' | 'favourites' | 'recommended' | 'collections' | 'stats';
@@ -81,6 +96,7 @@ export interface AppPrefs {
   homeOrder: HomeSection[];
   homeHidden: HomeSection[];
   reduceMotion: boolean;
+  haptics: boolean;
 }
 
 export const DEFAULT_APP: AppPrefs = {
@@ -90,6 +106,7 @@ export const DEFAULT_APP: AppPrefs = {
   homeOrder: ['continue', 'recentChapters', 'recentlyAdded', 'recentlyUpdated', 'favourites', 'recommended', 'collections', 'stats'],
   homeHidden: [],
   reduceMotion: false,
+  haptics: true,
 };
 
 const THEME_KEY = 'notavi.theme';

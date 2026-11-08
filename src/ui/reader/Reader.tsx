@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, List, Maximize, Minimize, Type, X, ChevronUp, ChevronDown, CircleCheck } from 'lucide-react';
+import { ArrowLeft, Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, List, Maximize, Minimize, Type, X, ChevronUp, ChevronDown, CircleCheck, Headphones, Gauge, Search } from 'lucide-react';
 import { db, mutate, refreshLibrary, toast, useStore } from '../../app/store';
 import { navigate, routes, useRoute } from '../../app/router';
 import { resolveBlobRefs } from '../../app/blobs';
@@ -11,6 +11,7 @@ import { addAnnotation, deleteAnnotation, listAnnotationsForChapter, listAnnotat
 import { sanitizeChapterHtml } from '../../import/dom';
 import { formatMinutes, formatNumber, readingMinutes } from '../../lib/text';
 import { keepScreenOn, setFullscreen, copyText } from '../../platform';
+import { haptic } from '../../platform/haptics';
 import { IconButton, Button } from '../components/Button';
 import { Spinner, EmptyState } from '../components/misc';
 import { captureAnchor, findMatches, getBlocks, locate, rangeFromOffsets, scrollToAnchor, textOffset, unwrapAll, wrapRange, type Anchor } from './anchors';
@@ -18,6 +19,19 @@ import { ReaderSettings } from './ReaderSettings';
 import { ReaderDrawer } from './ReaderDrawer';
 import { SelectionToolbar, HighlightPopover, type SelectionInfo } from './SelectionToolbar';
 import { NoteDialog } from './NoteDialog';
+import { SpeechDock, ScrollDock } from './ReaderDock';
+import { Speaker, speechSupported, splitSentences, type Sentence } from './speech';
+
+type PageMotion = '' | 'is-fading' | 'is-entering-next' | 'is-entering-prev';
+
+/** CSS Custom Highlight API (Safari 17.2+, Chrome 105+): paints the spoken sentence without touching the DOM. */
+function speechHighlight(range: Range | null) {
+  const reg = (CSS as unknown as { highlights?: Map<string, unknown> }).highlights;
+  const H = (window as unknown as { Highlight?: new (...r: Range[]) => unknown }).Highlight;
+  if (!reg || !H) return;
+  if (range) reg.set('notavi-tts', new H(range));
+  else reg.delete('notavi-tts');
+}
 
 const IDLE_MS = 3 * 60 * 1000; // stop counting reading time after 3 minutes without interaction
 const SHORT_CHAPTER_DWELL_MS = 8000;
@@ -51,7 +65,13 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
   const [activeHighlight, setActiveHighlight] = useState<{ ann: Annotation; rect: DOMRect } | null>(null);
   const [noteFor, setNoteFor] = useState<{ ann?: Annotation; sel?: SelectionInfo } | null>(null);
   const [finds, setFinds] = useState<{ index: number; total: number } | null>(null);
-  const [fading, setFading] = useState(false);
+  const [pageMotion, setPageMotion] = useState<PageMotion>('');
+  const enterDir = useRef<'next' | 'prev' | null>(null);
+  const [findText, setFindText] = useState<string | null>(findQuery);
+  const findInput = useRef<HTMLInputElement>(null);
+  const [tts, setTts] = useState<{ playing: boolean; index: number; total: number } | null>(null);
+  const [auto, setAuto] = useState<{ running: boolean } | null>(null);
+  const newAnn = useRef<string | null>(null);
 
   const scroller = useRef<HTMLDivElement>(null);
   const article = useRef<HTMLDivElement>(null);
@@ -161,7 +181,7 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
       if (!range) continue;
       wrapRange(range, () => {
         const m = document.createElement('mark');
-        m.className = `hl hl-${a.color}${a.note ? ' has-note' : ''}`;
+        m.className = `hl hl-${a.color}${a.note ? ' has-note' : ''}${a.id === newAnn.current ? ' is-new' : ''}`;
         m.dataset.ann = a.id;
         return m;
       });
@@ -208,7 +228,17 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
       }
       onScroll();
     });
-    setFading(false);
+    setPageMotion(enterDir.current && !reduceMotion ? `is-entering-${enterDir.current}` : '');
+    enterDir.current = null;
+    // Read aloud and auto-scroll carry on into the next chapter.
+    if (speechContinue.current) {
+      speechContinue.current = false;
+      requestAnimationFrame(() => latest.current.startSpeech(true));
+    }
+    if (autoContinue.current) {
+      autoContinue.current = false;
+      setAuto({ running: true });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
@@ -219,6 +249,9 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
       paint();
       blocks.current = getBlocks(article.current!);
       scrollToAnchor(blocks.current, scroller.current!, a, TOP_INSET);
+      selfScrollTop.current = scroller.current!.scrollTop;
+      newAnn.current = null;
+      if (speaker.current) showSentence(speaker.current.index, false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [annotations]);
@@ -231,7 +264,10 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
     const ro = new ResizeObserver(() => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
-        if (!restoring.current) scrollToAnchor(blocks.current, scroller.current!, anchor.current, TOP_INSET);
+        if (restoring.current) return;
+        // Our own scroll must not be read back as the reader's position: layout may shift again before its scroll event arrives.
+        scrollToAnchor(blocks.current, scroller.current!, anchor.current, TOP_INSET);
+        selfScrollTop.current = scroller.current!.scrollTop;
       });
     });
     ro.observe(root);
@@ -264,9 +300,14 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
   }, [persist]);
 
   const lastY = useRef(0);
+  /** Where our own position restore left the scroller; its scroll event isn't the reader moving. */
+  const selfScrollTop = useRef<number | null>(null);
   const onScroll = useCallback(() => {
     const s = scroller.current;
     if (!s || restoring.current || !renderedFor.current) return;
+    const own = selfScrollTop.current;
+    selfScrollTop.current = null;
+    if (own !== null && Math.abs(s.scrollTop - own) < 1) return void setRatio(computeRatio());
     anchor.current = captureAnchor(blocks.current, s, TOP_INSET);
     setRatio(computeRatio());
     // Hide the bars while reading downwards; show them at the very end.
@@ -365,7 +406,17 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
       flushTimer();
       if (opts.finished) await markChapterCompleted(db(), novelId, chapter.id);
       else await persist();
-      setFading(!reduceMotion);
+      const from = loaded ? loaded.chapters.findIndex((c) => c.id === chapter.id) : 0;
+      const to = loaded ? loaded.chapters.findIndex((c) => c.id === target.id) : 1;
+      enterDir.current = to >= from ? 'next' : 'prev';
+      setPageMotion(reduceMotion ? '' : 'is-fading');
+      haptic('medium');
+      // Keep reading aloud through a chapter change; the new chapter starts from its title.
+      if (speaker.current?.playing) {
+        speaker.current.pause();
+        speechContinue.current = true;
+      }
+      speechHighlight(null);
       renderedFor.current = null;
       const c = await loadChapter(target.id);
       if (!c) return;
@@ -373,11 +424,12 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
       setPanel('none');
       setSelection(null);
       setFinds(null);
+      setFindText(null);
       navigate(routes.read(novelId, target.id), { replace: true });
       setChapter(c);
       lastY.current = 0;
     },
-    [chapter, novelId, persist, flushTimer, loadChapter, reduceMotion],
+    [chapter, loaded, novelId, persist, flushTimer, loadChapter, reduceMotion],
   );
 
   const page = useCallback(
@@ -391,6 +443,7 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
       if (dir === -1 && atStart) return void (prev && goTo(prev));
       const behavior = prefs.smoothScroll && !reduceMotion ? 'smooth' : 'instant';
       s.scrollBy({ top: dir * Math.max(120, s.clientHeight - lh * 2), behavior: behavior as ScrollBehavior });
+      haptic('selection');
       touch();
     },
     [prefs.fontSize, prefs.lineHeight, prefs.smoothScroll, reduceMotion, next, prev, goTo],
@@ -401,6 +454,11 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
   // Keyboard
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        openFind();
+        return;
+      }
       if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
       const t = e.target as HTMLElement;
       if (t.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return;
@@ -453,8 +511,21 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
         case 'b':
           void toggleBookmark();
           break;
+        case '/':
+          e.preventDefault();
+          openFind();
+          break;
+        case 'l':
+          toggleSpeech();
+          break;
+        case 'a':
+          toggleAuto();
+          break;
         case 'Escape':
           if (selection) setSelection(null);
+          else if (findText !== null) closeFind();
+          else if (tts) stopSpeech();
+          else if (auto) setAuto(null);
           else if (panel !== 'none') setPanel('none');
           else if (fullscreen) void toggleFullscreen();
           else exit();
@@ -469,9 +540,12 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
   const pointer = useRef<{ x: number; y: number; t: number; type: string } | null>(null);
   const onPointerDown = (e: React.PointerEvent) => {
     pointer.current = { x: e.clientX, y: e.clientY, t: Date.now(), type: e.pointerType };
+    held.current = true;
+    followPausedUntil.current = Date.now() + 4000;
     touch();
   };
   const onPointerUp = (e: React.PointerEvent) => {
+    held.current = false;
     const p = pointer.current;
     pointer.current = null;
     if (!p) return;
@@ -546,7 +620,8 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
 
   const createFromSelection = async (kind: 'highlight' | 'text_bookmark' | 'note', color: HighlightColor = 'amber', note = '', sel: SelectionInfo | null = selection) => {
     if (!sel || !chapter) return;
-    await addAnnotation(db(), { novelId, chapterId: chapter.id, kind, startOffset: sel.start, endOffset: sel.end, blockIndex: sel.blockIndex, quote: sel.quote, color, note });
+    const id = await addAnnotation(db(), { novelId, chapterId: chapter.id, kind, startOffset: sel.start, endOffset: sel.end, blockIndex: sel.blockIndex, quote: sel.quote, color, note });
+    if (kind !== 'text_bookmark' && !reduceMotion) newAnn.current = id;
     window.getSelection()?.removeAllRanges();
     setSelection(null);
     await reloadAnnotations();
@@ -604,12 +679,225 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
     list[idx][0]?.scrollIntoView({ block: 'center', behavior: prefs.smoothScroll && !reduceMotion ? 'smooth' : 'instant' });
     setFinds({ ...finds, index: idx });
   };
-  const closeFind = () => {
+  const clearFind = () => {
     if (article.current) unwrapAll(article.current, 'mark.find');
     blocks.current = article.current ? getBlocks(article.current) : [];
+    findRanges.current = [];
     setFinds(null);
-    navigate(routes.read(novelId, chapter?.id), { replace: true });
   };
+  const closeFind = () => {
+    clearFind();
+    setFindText(null);
+    if (findQuery) navigate(routes.read(novelId, chapter?.id), { replace: true });
+  };
+  const openFind = () => {
+    setFindText((t) => t ?? '');
+    setPanel('none');
+    requestAnimationFrame(() => findInput.current?.select());
+  };
+  const findDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onFindInput = (v: string) => {
+    setFindText(v);
+    if (findDebounce.current) clearTimeout(findDebounce.current);
+    findDebounce.current = setTimeout(() => {
+      if (v.trim().length < 2) clearFind();
+      else runFind(v, 0);
+    }, 220);
+  };
+
+  /* ---------------------------------------------------------------- read aloud */
+
+  const speaker = useRef<Speaker | null>(null);
+  const sentences = useRef<Sentence[]>([]);
+  const sentencesFor = useRef<string | null>(null);
+  const speechContinue = useRef(false);
+  const followPausedUntil = useRef(0);
+
+  const showSentence = (i: number, follow = true) => {
+    setTts((t) => (t ? { ...t, index: i } : t));
+    const sn = sentences.current[i];
+    const root = article.current;
+    const s = scroller.current;
+    if (!sn || !root || !s) return;
+    if (sn.block < 0) return speechHighlight(null);
+    const range = rangeFromOffsets(root, sn.start, sn.end);
+    speechHighlight(range);
+    if (!range || !follow || Date.now() < followPausedUntil.current) return;
+    const r = range.getBoundingClientRect();
+    const h = s.clientHeight;
+    if (r.top < h * 0.14 || r.bottom > h * 0.72) s.scrollBy({ top: r.top - h * 0.3, behavior: reduceMotion ? 'instant' : ('smooth' as ScrollBehavior) });
+  };
+
+  const buildSentences = (withTitle: boolean): Sentence[] => {
+    const root = article.current;
+    if (!root) return [];
+    const lang = loaded?.novel.language || 'en';
+    const out: Sentence[] = [];
+    if (withTitle && shown?.title) out.push({ block: -1, start: -1, end: -1, text: shown.title });
+    blocks.current.forEach((b, i) => {
+      const t = b.textContent ?? '';
+      if (!t.trim()) return;
+      const base = textOffset(root, b, 0);
+      for (const x of splitSentences(t, lang)) out.push({ block: i, start: base + x.start, end: base + x.end, text: x.text });
+    });
+    return out;
+  };
+
+  const stopSpeech = () => {
+    speaker.current?.stop();
+    speaker.current = null;
+    speechContinue.current = false;
+    speechHighlight(null);
+    setTts(null);
+  };
+
+  const startSpeech = (fromTop = false) => {
+    if (!speechSupported()) return toast({ message: 'Read aloud isn’t available on this device.', tone: 'error' });
+    speaker.current?.stop();
+    setAuto(null);
+    const a = anchor.current;
+    const atTop = fromTop || (a.blockIndex === 0 && a.blockOffset === 0);
+    const list = buildSentences(atTop);
+    if (!list.length) return toast('There’s no text to read aloud in this chapter.');
+    sentences.current = list;
+    sentencesFor.current = renderedFor.current;
+    const target = a.blockIndex + (a.blockOffset > 0.6 ? 1 : 0);
+    const from = atTop ? 0 : Math.max(0, list.findIndex((x) => x.block >= target));
+    followPausedUntil.current = 0;
+    const sp = new Speaker(list, {
+      rate: prefs.ttsRate,
+      voiceURI: prefs.ttsVoice,
+      lang: loaded?.novel.language || 'en',
+      onSentence: (i) => latest.current.showSentence(i),
+      onEnd: () => {
+        const n = latest.current.next;
+        if (n) {
+          speechContinue.current = true;
+          void latest.current.goTo(n, { finished: true });
+        } else {
+          speechHighlight(null);
+          setTts((t) => (t ? { ...t, playing: false } : t));
+          toast('That’s the end of the last chapter.');
+        }
+      },
+      onError: (m) => {
+        toast({ message: m, tone: 'error' });
+        setTts((t) => (t ? { ...t, playing: false } : t));
+      },
+    });
+    speaker.current = sp;
+    setTts({ playing: true, index: from, total: list.length });
+    void sp.play(from);
+  };
+
+  const toggleSpeech = () => {
+    const sp = speaker.current;
+    if (!sp) return startSpeech();
+    if (sp.playing) {
+      sp.pause();
+      setTts((t) => (t ? { ...t, playing: false } : t));
+    } else if (sentencesFor.current !== renderedFor.current) startSpeech();
+    else {
+      followPausedUntil.current = 0;
+      setTts((t) => (t ? { ...t, playing: true } : t));
+      void sp.play();
+    }
+  };
+
+  // Voice and speed changes apply straight away.
+  useEffect(() => {
+    speaker.current?.setOptions({ rate: prefs.ttsRate, voiceURI: prefs.ttsVoice });
+  }, [prefs.ttsRate, prefs.ttsVoice]);
+
+  // Stop speaking when leaving the reader.
+  useEffect(
+    () => () => {
+      speaker.current?.stop();
+      speechHighlight(null);
+    },
+    [],
+  );
+
+  // Lock-screen / headphone controls where the platform offers them.
+  useEffect(() => {
+    const ms = navigator.mediaSession;
+    if (!ms || !tts) return;
+    try {
+      ms.metadata = new MediaMetadata({ title: shown?.title ?? '', artist: loaded?.novel.author ?? '', album: loaded?.novel.title ?? '' });
+      ms.setActionHandler('play', () => latest.current.toggleSpeech());
+      ms.setActionHandler('pause', () => latest.current.toggleSpeech());
+      ms.setActionHandler('nexttrack', () => speaker.current?.skip(1));
+      ms.setActionHandler('previoustrack', () => speaker.current?.skip(-1));
+    } catch {
+      /* not supported here */
+    }
+    return () => {
+      try {
+        for (const a of ['play', 'pause', 'nexttrack', 'previoustrack'] as MediaSessionAction[]) ms.setActionHandler(a, null);
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [tts, shown, loaded]);
+
+  /* ---------------------------------------------------------------- auto-scroll */
+
+  const held = useRef(false);
+  const autoContinue = useRef(false);
+  const toggleAuto = () => {
+    if (auto) return setAuto(auto.running ? { running: false } : { running: true });
+    if (speaker.current) stopSpeech();
+    setAuto({ running: true });
+  };
+
+  useEffect(() => {
+    if (!auto?.running) return;
+    const s = scroller.current;
+    if (!s) return;
+    let raf = 0;
+    let last = performance.now();
+    let pos = s.scrollTop;
+    let endAt = 0;
+    let touchedAt = 0;
+    const step = (now: number) => {
+      const dt = Math.min(0.1, (now - last) / 1000);
+      last = now;
+      const switching = renderedFor.current !== chapterRef.current?.id;
+      if (held.current || switching) {
+        pos = s.scrollTop;
+        raf = requestAnimationFrame(step);
+        return;
+      }
+      if (Math.abs(s.scrollTop - pos) > 2) pos = s.scrollTop; // the reader moved it by hand
+      const max = s.scrollHeight - s.clientHeight;
+      if (pos >= max - 1) {
+        endAt ||= now;
+        if (now - endAt > 1800) {
+          const n = latest.current.next;
+          if (n) {
+            autoContinue.current = true;
+            void latest.current.goTo(n, { finished: true });
+          } else setAuto({ running: false });
+          return;
+        }
+      } else {
+        endAt = 0;
+        pos = Math.min(max, pos + (prefs.autoScrollSpeed / 10) * prefs.fontSize * prefs.lineHeight * dt);
+        s.scrollTop = pos;
+      }
+      if (now - touchedAt > 2000) {
+        touchedAt = now;
+        touch();
+      }
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auto, prefs.autoScrollSpeed, prefs.fontSize, prefs.lineHeight]);
+
+  const latest = useRef({ next, goTo, showSentence, startSpeech, toggleSpeech });
+  latest.current = { next, goTo, showSentence, startSpeech, toggleSpeech };
 
   /* ---------------------------------------------------------------- render */
 
@@ -640,6 +928,8 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
       </div>
     );
 
+  const hour = new Date().getHours();
+  const warmth = Math.max(prefs.warmth, prefs.warmAtNight && (hour >= 21 || hour < 6) ? 0.45 : 0);
   const words = shown?.wordCount ?? 0;
   const shownIndex = loaded && shown ? loaded.chapters.findIndex((c) => c.id === shown.id) : -1;
   const minutesLeft = Math.max(0, Math.round(readingMinutes(words, prefs.wpm) * (1 - ratio)));
@@ -648,7 +938,7 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
 
   return (
     <div
-      className={`reader ${chrome ? 'has-chrome' : ''} ${fullscreen ? 'is-fullscreen' : ''} ${panel !== 'none' ? 'has-panel' : ''}`}
+      className={`reader ${chrome ? 'has-chrome' : ''} ${fullscreen ? 'is-fullscreen' : ''} ${panel !== 'none' ? 'has-panel' : ''} ${tts || auto ? 'has-dock' : ''}`}
       data-reader-theme={prefs.theme}
       style={style}
       data-testid="reader"
@@ -660,27 +950,65 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
           <span className="reader__chapter">{chapter?.title}</span>
         </div>
         <IconButton icon={chapterBookmarked ? BookmarkCheck : Bookmark} active={chapterBookmarked} tone="brass" label={chapterBookmarked ? 'Remove chapter bookmark' : 'Bookmark this chapter'} onClick={toggleBookmark} />
+        <IconButton icon={Search} label="Find in chapter" onClick={openFind} active={findText !== null} data-testid="find-btn" />
         <IconButton icon={List} label="Chapters and bookmarks" onClick={() => setPanel(panel === 'chapters' ? 'none' : 'chapters')} active={panel === 'chapters' || panel === 'bookmarks'} />
         <IconButton icon={Type} label="Reading settings" onClick={() => setPanel(panel === 'settings' ? 'none' : 'settings')} active={panel === 'settings'} data-testid="reader-settings-btn" />
-        <IconButton icon={fullscreen ? Minimize : Maximize} label={fullscreen ? 'Exit full screen' : 'Full screen'} onClick={toggleFullscreen} />
+        <IconButton icon={fullscreen ? Minimize : Maximize} label={fullscreen ? 'Exit full screen' : 'Full screen'} onClick={toggleFullscreen} className="reader__fs" />
       </header>
 
-      {finds && (
-        <div className="reader__find" role="search">
-          <span>{finds.total ? `${finds.index + 1} of ${finds.total}` : 'No matches in this chapter'}</span>
-          <IconButton icon={ChevronUp} size="sm" label="Previous match" onClick={() => stepFind(-1)} disabled={!finds.total} />
-          <IconButton icon={ChevronDown} size="sm" label="Next match" onClick={() => stepFind(1)} disabled={!finds.total} />
+      {findText !== null && (
+        <div className="reader__find" role="search" data-notap>
+          <Search size={16} aria-hidden className="reader__find-icon" />
+          <input
+            ref={findInput}
+            className="reader__find-input"
+            value={findText}
+            autoFocus={!findQuery}
+            placeholder="Find in chapter"
+            aria-label="Find in chapter"
+            enterKeyHint="search"
+            onChange={(e) => onFindInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                if (!finds && findText.trim()) runFind(findText, 0);
+                else stepFind(e.shiftKey ? -1 : 1);
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                closeFind();
+              }
+            }}
+            data-testid="find-input"
+          />
+          <span className="reader__find-count" aria-live="polite">
+            {finds ? (finds.total ? `${finds.index + 1} of ${finds.total}` : 'No matches') : ''}
+          </span>
+          <IconButton icon={ChevronUp} size="sm" label="Previous match" onClick={() => stepFind(-1)} disabled={!finds?.total} />
+          <IconButton icon={ChevronDown} size="sm" label="Next match" onClick={() => stepFind(1)} disabled={!finds?.total} />
           <IconButton icon={X} size="sm" label="Close search" onClick={closeFind} />
         </div>
       )}
 
-      <div className="reader__scroll" ref={scroller} onScroll={onScroll} onPointerDown={onPointerDown} onPointerUp={onPointerUp} onWheel={touch} tabIndex={-1}>
+      <div
+        className="reader__scroll"
+        ref={scroller}
+        onScroll={onScroll}
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onPointerCancel={() => (held.current = false)}
+        onWheel={() => {
+          touch();
+          followPausedUntil.current = Date.now() + 4000;
+        }}
+        tabIndex={-1}
+      >
         {!shown ? (
           <div className="reader__loading">
             <Spinner label="Loading chapter" />
           </div>
         ) : null}
-        <div className={`reader__page ${fading ? 'is-fading' : ''}`}>
+        <div className={`reader__page ${pageMotion}`} onAnimationEnd={(e) => e.target === e.currentTarget && setPageMotion('')}>
           {shown && (
             <header className="chapter-head">
               <p className="chapter-head__novel">{loaded?.novel.title}</p>
@@ -733,14 +1061,35 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
 
       <footer className="reader__bottom" aria-hidden={!chrome}>
         <IconButton icon={ChevronLeft} label="Previous chapter" onClick={() => goTo(prev)} disabled={!prev} data-testid="prev-chapter-btn" />
+        {speechSupported() && <IconButton icon={Headphones} label={tts ? 'Stop reading aloud' : 'Read aloud'} active={!!tts} onClick={() => (tts ? stopSpeech() : startSpeech())} data-testid="listen-btn" />}
         <button type="button" className="reader__position" onClick={() => setPanel('chapters')}>
           <span>
             Chapter {index + 1} of {formatNumber(loaded?.chapters.length ?? 0)}
           </span>
           <span className="reader__novel-pct">{Math.round(novelPct * 100)}% of novel</span>
         </button>
+        <IconButton icon={Gauge} label={auto ? 'Stop auto-scroll' : 'Auto-scroll'} active={!!auto} onClick={() => (auto ? setAuto(null) : toggleAuto())} data-testid="autoscroll-btn" />
         <IconButton icon={ChevronRight} label="Next chapter" onClick={() => goTo(next, { finished: true })} disabled={!next} data-testid="next-chapter-btn" />
       </footer>
+
+      {tts && (
+        <SpeechDock
+          playing={tts.playing}
+          index={tts.index}
+          total={tts.total}
+          rate={prefs.ttsRate}
+          onToggle={toggleSpeech}
+          onSkip={(d) => {
+            followPausedUntil.current = 0;
+            speaker.current?.skip(d);
+          }}
+          onRate={(r) => void useStore.getState().setReader({ ttsRate: r })}
+          onClose={stopSpeech}
+        />
+      )}
+      {auto && !tts && <ScrollDock running={auto.running} speed={prefs.autoScrollSpeed} onToggle={toggleAuto} onSpeed={(v) => void useStore.getState().setReader({ autoScrollSpeed: v })} onClose={() => setAuto(null)} />}
+
+      {(prefs.dim > 0 || warmth > 0) && <div className="reader__filter" aria-hidden style={{ '--dim': prefs.dim, '--warm': warmth } as React.CSSProperties} data-testid="reader-filter" />}
 
       {prefs.showStatus && (
         <div className="reader__status" aria-hidden>

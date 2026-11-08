@@ -1,4 +1,4 @@
-import { useId, useState, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react';
+import { useId, useLayoutEffect, useRef, useState, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react';
 import { X } from 'lucide-react';
 
 interface FieldProps {
@@ -178,8 +178,11 @@ export function Segmented<T extends string>({
   label: string;
   className?: string;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const indicator = useSlidingIndicator(ref, '.segmented__opt.is-on', [value, options.length]);
   return (
-    <div className={`segmented ${className}`} role="radiogroup" aria-label={label}>
+    <div ref={ref} className={`segmented ${className}`} role="radiogroup" aria-label={label}>
+      <span className="slider-indicator segmented__thumb" style={indicator} aria-hidden />
       {options.map((o) => (
         <button
           key={o.value}
@@ -195,6 +198,25 @@ export function Segmented<T extends string>({
       ))}
     </div>
   );
+}
+
+/** Position an indicator over the active child of `container` (for sliding tab/segment highlights). */
+export function useSlidingIndicator(container: React.RefObject<HTMLElement | null>, activeSelector: string, deps: unknown[]): React.CSSProperties {
+  const [style, setStyle] = useState<React.CSSProperties>({ opacity: 0 });
+  useLayoutEffect(() => {
+    const measure = () => {
+      const c = container.current;
+      const el = c?.querySelector<HTMLElement>(activeSelector);
+      if (!c || !el) return setStyle({ opacity: 0 });
+      setStyle({ width: el.offsetWidth, height: el.offsetHeight, transform: `translate(${el.offsetLeft}px, ${el.offsetTop}px)`, opacity: 1 });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (container.current) ro.observe(container.current);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return style;
 }
 
 export function Stepper({
