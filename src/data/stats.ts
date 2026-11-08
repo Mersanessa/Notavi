@@ -19,6 +19,8 @@ export interface Stats {
   chaptersRead: number;
   readingMs: number;
   readingMsThisWeek: number;
+  readingMsToday: number;
+  chaptersToday: number;
   currentStreak: number;
   longestStreak: number;
   activeDays: number;
@@ -112,6 +114,8 @@ export async function getStats(db: Db, opts: { days?: number; now?: number } = {
     chaptersRead: chapters!.n,
     readingMs: time!.ms,
     readingMsThisWeek: week,
+    readingMsToday: msByDay.get(today) ?? 0,
+    chaptersToday: chByDayMap.get(today) ?? 0,
     currentStreak: current,
     longestStreak: longest,
     activeDays: active.size,
@@ -122,6 +126,11 @@ export async function getStats(db: Db, opts: { days?: number; now?: number } = {
     months,
     topNovels: top,
   };
+}
+
+/** Minutes read today (for the daily goal). */
+export async function readingMsOn(db: Db, day = localDay()): Promise<number> {
+  return (await db.get<{ ms: number }>('SELECT coalesce(sum(duration_ms), 0) AS ms FROM reading_log WHERE day = ?', [day]))?.ms ?? 0;
 }
 
 /* ------------------------------------------------------------------ recommendations */

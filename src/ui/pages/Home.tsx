@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, BookOpen, Eye, EyeOff, FilePlus2, Flame, LayoutGrid, Plus, Upload } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookOpen, Eye, EyeOff, FilePlus2, Flame, LayoutGrid, Plus, Quote, Upload } from 'lucide-react';
 import { useStore, db } from '../../app/store';
 import { useAsync, useDocumentTitle } from '../../app/hooks';
 import { href, navigate, routes } from '../../app/router';
-import { HOME_SECTIONS, type HomeSection } from '../../app/prefs';
+import { HOME_SECTIONS, resolveHomeOrder, type HomeSection } from '../../app/prefs';
 import type { NovelSummary } from '../../data/model';
 import { recentlyReadChapters } from '../../data/reading';
 import { getStats, recommend } from '../../data/stats';
-import { formatDuration, formatMinutes, formatNumber, readingMinutes, relativeTime } from '../../lib/text';
+import { highlightOfTheDay } from '../../data/annotations';
+import { formatDuration, formatMinutes, formatNumber, localDay, readingMinutes, relativeTime } from '../../lib/text';
 import { BookCard } from '../components/BookCard';
 import { Cover } from '../components/Cover';
 import { Button, IconButton } from '../components/Button';
@@ -76,11 +77,13 @@ export function HomePage() {
     );
   }
 
-  const order = app.homeOrder.filter((s) => !app.homeHidden.includes(s));
+  const order = resolveHomeOrder(app.homeOrder).filter((s) => !app.homeHidden.includes(s));
   const render = (s: HomeSection) => {
     switch (s) {
       case 'continue':
         return groups.continuing.length ? <ContinueReading key={s} list={groups.continuing} wpm={wpm} /> : null;
+      case 'today':
+        return stats.data && (app.dailyGoal > 0 || stats.data.annotations > 0) ? <Today key={s} msToday={stats.data.readingMsToday} streak={stats.data.currentStreak} goal={app.dailyGoal} /> : null;
       case 'recentChapters':
         return recent.data?.length ? (
           <section key={s} className="home-section" aria-labelledby="h-recent">
@@ -192,6 +195,63 @@ export function HomePage() {
   );
 }
 
+/** Today's reading against your daily goal, and one of your highlights to revisit. */
+function Today({ msToday, streak, goal }: { msToday: number; streak: number; goal: number }) {
+  const hl = useAsync(() => highlightOfTheDay(db(), localDay()), []);
+  const minutes = Math.floor(msToday / 60000);
+  const pct = goal > 0 ? Math.min(1, msToday / (goal * 60000)) : 0;
+  const met = goal > 0 && pct >= 1;
+  const R = 34;
+  const C = 2 * Math.PI * R;
+  const h = hl.data;
+  if (!goal && !h) return null;
+  return (
+    <section className="home-section" aria-labelledby="h-today">
+      <SectionHeader id="h-today" title="Today" />
+      <div className={`today ${h ? '' : 'today--single'}`}>
+        {goal > 0 && (
+          <a className={`goal ${met ? 'is-met' : ''}`} href={href(routes.stats())} data-testid="goal">
+            <svg className="goal__ring" viewBox="0 0 84 84" aria-hidden>
+              <circle className="goal__track" cx="42" cy="42" r={R} />
+              {pct > 0 && <circle className="goal__arc" cx="42" cy="42" r={R} strokeDasharray={C} style={{ '--arc-to': `${C * (1 - pct)}`, '--arc-from': `${C}` } as React.CSSProperties} />}
+            </svg>
+            <span className="goal__centre" aria-hidden>
+              <span className="goal__mins">
+                <CountUp value={minutes} />
+              </span>
+              <span className="goal__unit">min</span>
+            </span>
+            <span className="goal__text">
+              <span className="goal__title">{met ? 'Daily goal met' : minutes ? `${goal - minutes} min to your goal` : 'Your daily goal'}</span>
+              <span className="goal__sub">
+                {minutes} of {goal} minutes today
+                {streak > 0 && (
+                  <>
+                    {' · '}
+                    <Flame size={13} aria-hidden className="goal__flame" /> {streak}-day streak
+                  </>
+                )}
+              </span>
+            </span>
+          </a>
+        )}
+        {h && (
+          <a className={`revisit hl-${h.color}`} href={href(routes.read(h.novelId, h.chapterId, `a=${h.id}`))} data-testid="revisit">
+            <span className="revisit__label">
+              <Quote size={14} aria-hidden /> From your highlights
+            </span>
+            <span className="revisit__quote">{h.quote.trim()}</span>
+            {h.note && <span className="revisit__note">{h.note}</span>}
+            <span className="revisit__src">
+              {h.novelTitle} · {h.chapterTitle}
+            </span>
+          </a>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function ContinueReading({ list, wpm }: { list: NovelSummary[]; wpm: number }) {
   const [lead, ...rest] = list;
   const wordsLeft = Math.max(0, Math.round(lead.totalWords * (1 - lead.percent)));
@@ -282,7 +342,7 @@ export function CollectionTile({ id, name, count, coverNovelIds, novels }: { id:
 function CustomiseHome({ open, onClose }: { open: boolean; onClose: () => void }) {
   const app = useStore((s) => s.app);
   const setApp = useStore((s) => s.setApp);
-  const order = app.homeOrder.concat(HOME_SECTIONS.map((h) => h.value).filter((v) => !app.homeOrder.includes(v)));
+  const order = resolveHomeOrder(app.homeOrder);
   const move = (i: number, d: -1 | 1) => {
     const next = [...order];
     const [x] = next.splice(i, 1);

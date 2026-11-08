@@ -76,10 +76,11 @@ export const DEFAULT_READER: ReaderPrefs = {
   warmAtNight: false,
 };
 
-export type HomeSection = 'continue' | 'recentChapters' | 'recentlyAdded' | 'recentlyUpdated' | 'favourites' | 'recommended' | 'collections' | 'stats';
+export type HomeSection = 'continue' | 'today' | 'recentChapters' | 'recentlyAdded' | 'recentlyUpdated' | 'favourites' | 'recommended' | 'collections' | 'stats';
 
 export const HOME_SECTIONS: { value: HomeSection; label: string }[] = [
   { value: 'continue', label: 'Continue reading' },
+  { value: 'today', label: 'Today' },
   { value: 'recentChapters', label: 'Recently read chapters' },
   { value: 'recentlyAdded', label: 'Recently added' },
   { value: 'recentlyUpdated', label: 'Recently updated' },
@@ -97,17 +98,30 @@ export interface AppPrefs {
   homeHidden: HomeSection[];
   reduceMotion: boolean;
   haptics: boolean;
+  /** Minutes of reading a day to aim for; 0 turns the goal off. */
+  dailyGoal: number;
 }
 
 export const DEFAULT_APP: AppPrefs = {
   theme: 'dark',
   libraryView: 'grid',
   librarySort: 'last_read',
-  homeOrder: ['continue', 'recentChapters', 'recentlyAdded', 'recentlyUpdated', 'favourites', 'recommended', 'collections', 'stats'],
+  homeOrder: ['continue', 'today', 'recentChapters', 'recentlyAdded', 'recentlyUpdated', 'favourites', 'recommended', 'collections', 'stats'],
   homeHidden: [],
   reduceMotion: false,
   haptics: true,
+  dailyGoal: 20,
 };
+
+/** The saved Home order plus any sections added in later versions, each slotted in at its default place. */
+export function resolveHomeOrder(saved: HomeSection[]): HomeSection[] {
+  const known = new Set<string>(HOME_SECTIONS.map((h) => h.value));
+  const order = saved.filter((s) => known.has(s));
+  DEFAULT_APP.homeOrder.forEach((s, i) => {
+    if (!order.includes(s)) order.splice(Math.min(i, order.length), 0, s);
+  });
+  return order;
+}
 
 const THEME_KEY = 'notavi.theme';
 

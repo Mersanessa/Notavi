@@ -37,6 +37,8 @@ export interface Novel {
   /** Free text such as "Ongoing" or "Completed (1432 chapters)". */
   publicationStatus: string;
   favourite: boolean;
+  /** Your own rating, 1–5 stars; 0 = not rated. */
+  rating: number;
   personalNotes: string;
   coverId: string | null;
   language: string;

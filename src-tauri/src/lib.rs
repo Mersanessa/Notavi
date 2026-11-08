@@ -11,6 +11,8 @@ pub fn run() {
     // Haptic feedback exists only on phones and tablets.
     #[cfg(mobile)]
     let builder = builder.plugin(tauri_plugin_haptics::init());
+    #[cfg(target_os = "android")]
+    let builder = builder.plugin(tauri_plugin_tts::init());
     builder
         .run(tauri::generate_context!())
         .expect("error while running Notavi");

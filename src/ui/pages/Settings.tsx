@@ -81,6 +81,8 @@ function Appearance() {
 function ReadingDefaults() {
   const r = useStore((s) => s.reader);
   const set = useStore((s) => s.setReader);
+  const goal = useStore((s) => s.app.dailyGoal);
+  const setApp = useStore((s) => s.setApp);
   return (
     <Section id="reading" icon={Type} title="Reading" lead="These are the same settings as the Aa menu in the reader. Changes apply to every novel.">
       <div className="settings-grid">
@@ -92,6 +94,15 @@ function ReadingDefaults() {
       <div className="reading-sample" data-reader-theme={r.theme} style={{ fontFamily: READER_FONTS.find((f) => f.value === r.font)?.stack, fontSize: r.fontSize, lineHeight: r.lineHeight, fontWeight: r.fontWeight }}>
         It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.
       </div>
+      <Stepper
+        label="Daily reading goal"
+        value={goal}
+        min={0}
+        max={240}
+        step={5}
+        format={(v) => (v ? `${v} min` : 'Off')}
+        onChange={(v) => void setApp({ dailyGoal: v })}
+      />
     </Section>
   );
 }

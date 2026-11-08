@@ -57,7 +57,7 @@ export async function searchText(
 
 /* ------------------------------------------------------------------ filtering & sorting (pure) */
 
-export type SortKey = 'title' | 'author' | 'added' | 'updated' | 'last_read' | 'progress' | 'chapters';
+export type SortKey = 'title' | 'author' | 'added' | 'updated' | 'last_read' | 'progress' | 'chapters' | 'rating';
 export const SORTS: { value: SortKey; label: string }[] = [
   { value: 'last_read', label: 'Last read' },
   { value: 'added', label: 'Date added' },
@@ -66,6 +66,7 @@ export const SORTS: { value: SortKey; label: string }[] = [
   { value: 'author', label: 'Author' },
   { value: 'progress', label: 'Progress' },
   { value: 'chapters', label: 'Chapter count' },
+  { value: 'rating', label: 'Your rating' },
 ];
 
 export interface NovelFilters {
@@ -112,6 +113,7 @@ export function sortNovels(list: NovelSummary[], key: SortKey, dir: 'asc' | 'des
     last_read: (a, b) => (a.lastReadAt ?? 0) - (b.lastReadAt ?? 0) || b.createdAt - a.createdAt,
     progress: (a, b) => a.percent - b.percent,
     chapters: (a, b) => a.chapterCount - b.chapterCount,
+    rating: (a, b) => a.rating - b.rating || (a.lastReadAt ?? 0) - (b.lastReadAt ?? 0),
   };
   const sorted = [...list].sort(cmp[key]);
   return dir === 'desc' ? sorted.reverse() : sorted;

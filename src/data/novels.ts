@@ -7,7 +7,7 @@ import type { Chapter, ChapterMeta, Novel, NovelInput, NovelSummary, ParsedNovel
 type NovelRow = {
   id: string; title: string; alt_titles: string; author: string; translator: string; description: string;
   genres: string; tags: string; content_type: Novel['contentType']; source: string; licence_notes: string;
-  external_url: string; status: Novel['status']; publication_status: string; favourite: number;
+  external_url: string; status: Novel['status']; publication_status: string; favourite: number; rating: number;
   personal_notes: string; cover_id: string | null; language: string; created_at: number; updated_at: number;
   content_updated_at: number; last_read_at: number | null;
 };
@@ -42,6 +42,7 @@ export function rowToNovel(r: NovelRow): Novel {
     status: r.status,
     publicationStatus: r.publication_status,
     favourite: !!r.favourite,
+    rating: r.rating ?? 0,
     personalNotes: r.personal_notes,
     coverId: r.cover_id,
     language: r.language,
@@ -115,7 +116,7 @@ const FIELD_COLUMNS: Record<string, string> = {
   title: 'title', altTitles: 'alt_titles', author: 'author', translator: 'translator', description: 'description',
   genres: 'genres', tags: 'tags', contentType: 'content_type', source: 'source', licenceNotes: 'licence_notes',
   externalUrl: 'external_url', status: 'status', publicationStatus: 'publication_status', favourite: 'favourite',
-  personalNotes: 'personal_notes', language: 'language',
+  personalNotes: 'personal_notes', language: 'language', rating: 'rating',
 };
 
 function columnValue(v: unknown) {

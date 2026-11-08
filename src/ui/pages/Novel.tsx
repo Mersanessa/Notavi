@@ -18,6 +18,7 @@ import { formatDate, formatDuration, formatMinutes, formatNumber, readingMinutes
 import { prepareCover } from '../../lib/image';
 import { copyText, openExternal, pickFiles } from '../../platform';
 import { Cover } from '../components/Cover';
+import { StarRating } from '../components/Stars';
 import { Button, IconButton } from '../components/Button';
 import { Menu, type MenuItem } from '../components/Menu';
 import { EmptyState, Ribbon, Spinner, StatusBadge } from '../components/misc';
@@ -147,6 +148,7 @@ function NovelHeader({ novel }: { novel: NovelSummary }) {
           {novel.totalWords > 0 && <span>about {formatMinutes(minutesTotal)}</span>}
           {novel.publicationStatus && <span>{novel.publicationStatus}</span>}
         </div>
+        <StarRating value={novel.rating} onChange={(v) => void mutate((d) => updateNovel(d, novel.id, { rating: v }))} />
         {novel.chapterCount > 0 && (
           <div className="novel-head__progress">
             <Ribbon value={novel.percent} label={`${Math.round(novel.percent * 100)}% read`} />

@@ -9,7 +9,8 @@ import { getChapter, getNovel, listChapters, updateNovel } from '../../data/nove
 import { getProgress, logReading, markChapterCompleted, saveProgress } from '../../data/reading';
 import { addAnnotation, deleteAnnotation, listAnnotationsForChapter, listAnnotationsForNovel, toggleChapterBookmark, updateAnnotation } from '../../data/annotations';
 import { sanitizeChapterHtml } from '../../import/dom';
-import { formatMinutes, formatNumber, readingMinutes } from '../../lib/text';
+import { formatMinutes, formatNumber, localDay, readingMinutes } from '../../lib/text';
+import { readingMsOn } from '../../data/stats';
 import { keepScreenOn, setFullscreen, copyText } from '../../platform';
 import { haptic } from '../../platform/haptics';
 import { IconButton, Button } from '../components/Button';
@@ -31,6 +32,21 @@ function speechHighlight(range: Range | null) {
   if (!reg || !H) return;
   if (range) reg.set('notavi-tts', new H(range));
   else reg.delete('notavi-tts');
+}
+
+/** A quiet toast (and a success tap) the first time today's reading reaches the daily goal. */
+async function celebrateGoal() {
+  const goal = useStore.getState().app.dailyGoal;
+  if (!goal) return;
+  const day = localDay();
+  try {
+    if (localStorage.getItem('notavi.goalMet') === day) return;
+    if ((await readingMsOn(db(), day)) < goal * 60000) return;
+    localStorage.setItem('notavi.goalMet', day);
+  } catch {
+    return;
+  }
+  toast({ message: `Daily goal reached: ${goal} minutes today`, tone: 'success' });
 }
 
 const IDLE_MS = 3 * 60 * 1000; // stop counting reading time after 3 minutes without interaction
@@ -342,7 +358,7 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
     if (timerStart.current && c) {
       const end = Math.min(Date.now(), lastInteraction.current + IDLE_MS);
       const ms = end - timerStart.current;
-      if (ms > 0) void logReading(db(), { novelId, chapterId: c.id, startedAt: timerStart.current, durationMs: ms });
+      if (ms > 0) void logReading(db(), { novelId, chapterId: c.id, startedAt: timerStart.current, durationMs: ms }).then(celebrateGoal);
     }
     timerStart.current = document.visibilityState === 'visible' ? Date.now() : null;
   }, [novelId]);
@@ -766,7 +782,7 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
     followPausedUntil.current = 0;
     const sp = new Speaker(list, {
       rate: prefs.ttsRate,
-      voiceURI: prefs.ttsVoice,
+      voiceId: prefs.ttsVoice,
       lang: loaded?.novel.language || 'en',
       onSentence: (i) => latest.current.showSentence(i),
       onEnd: () => {
@@ -806,7 +822,7 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
 
   // Voice and speed changes apply straight away.
   useEffect(() => {
-    speaker.current?.setOptions({ rate: prefs.ttsRate, voiceURI: prefs.ttsVoice });
+    speaker.current?.setOptions({ rate: prefs.ttsRate, voiceId: prefs.ttsVoice });
   }, [prefs.ttsRate, prefs.ttsVoice]);
 
   // Stop speaking when leaving the reader.

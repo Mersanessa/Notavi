@@ -15,7 +15,7 @@ type Form = Required<Omit<NovelInput, 'favourite'>> & { favourite: boolean };
 
 const EMPTY: Form = {
   title: '', altTitles: [], author: '', translator: '', description: '', genres: [], tags: [], contentType: 'original', source: '', licenceNotes: '',
-  externalUrl: '', status: 'want_to_read', publicationStatus: '', favourite: false, personalNotes: '', language: '',
+  externalUrl: '', status: 'want_to_read', publicationStatus: '', favourite: false, personalNotes: '', language: '', rating: 0,
 };
 
 function validUrl(u: string) {

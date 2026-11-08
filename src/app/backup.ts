@@ -3,7 +3,7 @@ import { BACKUP_EXTENSION, decryptBackup, encryptBackup, readBackupHeader, type 
 import { localDay } from '../lib/text';
 import { getSetting, setSetting } from '../data/settings';
 
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.1.0';
 
 export async function createBackup(db: Db, passphrase: string, iterations?: number): Promise<{ bytes: Uint8Array; fileName: string; header: Pick<BackupHeader, 'novels' | 'chapters'> }> {
   // Record the backup time inside the library first, so the restored copy knows when it was made.

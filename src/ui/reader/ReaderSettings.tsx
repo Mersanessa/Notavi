@@ -4,10 +4,10 @@ import { useStore } from '../../app/store';
 import { DEFAULT_READER, READER_FONTS, READER_THEMES, type ReaderPrefs } from '../../app/prefs';
 import { IconButton, Button } from '../components/Button';
 import { Segmented, SelectField, Stepper, Switch } from '../components/Fields';
-import { listVoices, speechSupported } from './speech';
+import { listVoices, speechSupported, type VoiceInfo } from './speech';
 
 /** British voices first (then other English), the rest alphabetically. */
-function rankVoice(v: SpeechSynthesisVoice) {
+function rankVoice(v: VoiceInfo) {
   return v.lang === 'en-GB' ? 0 : v.lang.startsWith('en') ? 1 : 2;
 }
 
@@ -19,7 +19,7 @@ export function ReaderSettings({ onClose }: { onClose: () => void }) {
   const r = useStore((s) => s.reader);
   const set = useStore((s) => s.setReader);
   const upd = (p: Partial<ReaderPrefs>) => void set(p);
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [voices, setVoices] = useState<VoiceInfo[]>([]);
   useEffect(() => {
     void listVoices().then((v) => setVoices([...v].sort((a, b) => rankVoice(a) - rankVoice(b) || a.name.localeCompare(b.name))));
   }, []);
@@ -96,8 +96,8 @@ export function ReaderSettings({ onClose }: { onClose: () => void }) {
               label="Voice"
               value={r.ttsVoice ?? ''}
               onChange={(v) => upd({ ttsVoice: v || null })}
-              options={[{ value: '', label: 'Automatic (matches the book’s language)' }, ...voices.map((v) => ({ value: v.voiceURI, label: `${v.name} · ${v.lang}${v.localService ? '' : ' · online'}` }))]}
-              hint="Voices come from your device and work offline unless marked ‘online’."
+              options={[{ value: '', label: 'Automatic (matches the book’s language)' }, ...voices.map((v) => ({ value: v.id, label: `${v.name} · ${v.lang}${v.local ? '' : ' · online'}` }))]}
+              hint="Voices come from your device’s own text-to-speech settings and work offline unless marked ‘online’."
             />
             <Stepper label="Speaking speed" value={r.ttsRate} min={0.5} max={2.5} step={0.1} format={(v) => `${v.toFixed(1)}×`} onChange={(v) => upd({ ttsRate: Number(v.toFixed(1)) })} />
           </section>

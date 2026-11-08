@@ -1,7 +1,7 @@
 {
   "name": "notavi",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A private, local-first novel library and reader.",
   "type": "module",
   "scripts": {
@@ -35,6 +35,7 @@
     "marked": "^18.1.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "tauri-plugin-tts-api": "^0.2.1",
     "zustand": "^5.1.0"
   },
   "devDependencies": {

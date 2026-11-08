@@ -72,6 +72,17 @@ export async function listAllAnnotations(db: Db, limit = 200): Promise<Annotatio
   return (await db.all<Row>(`${SELECT} ORDER BY a.created_at DESC LIMIT ?`, [limit])).map(toAnnotation);
 }
 
+/** One highlight or note to revisit today: the same all day, a different one tomorrow. */
+export async function highlightOfTheDay(db: Db, day: string): Promise<Annotation | null> {
+  const where = `WHERE a.kind IN ('highlight','note') AND length(trim(a.quote)) >= 24`;
+  const n = (await db.get<{ n: number }>(`SELECT count(*) AS n FROM annotations a ${where}`))?.n ?? 0;
+  if (!n) return null;
+  let h = 2166136261;
+  for (const ch of day) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  const r = await db.get<Row>(`${SELECT} ${where} ORDER BY a.created_at, a.id LIMIT 1 OFFSET ?`, [(h >>> 0) % n]);
+  return r ? toAnnotation(r) : null;
+}
+
 export async function annotationCounts(db: Db, novelId: string): Promise<Record<AnnotationKind, number>> {
   const rows = await db.all<{ kind: AnnotationKind; n: number }>('SELECT kind, count(*) AS n FROM annotations WHERE novel_id = ? GROUP BY kind', [novelId]);
   const out: Record<AnnotationKind, number> = { chapter_bookmark: 0, text_bookmark: 0, highlight: 0, note: 0 };

@@ -165,6 +165,9 @@ export const MIGRATIONS: string[] = [
     DELETE FROM novel_fts WHERE rowid = old.rid;
   END;
   `,
+  /* v2 (1.1): your own star rating, 0 = not rated. */ `
+  ALTER TABLE novels ADD COLUMN rating INTEGER NOT NULL DEFAULT 0 CHECK (rating BETWEEN 0 AND 5);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

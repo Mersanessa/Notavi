@@ -6,16 +6,37 @@ your library lives on your device, and it leaves only when you export an encrypt
 - **Reader:** chapter-by-chapter reading in Nunito Sans by default (plus Literata, Source Serif, Lora, Atkinson
   Hyperlegible and more). Adjustable size, weight, line and paragraph spacing, line length and margins. Night, Black,
   Sepia and Paper themes, full screen, and resume exactly where you stopped. Navigate by tapping the screen edges,
-  swiping or using the keyboard.
+  swiping or using the keyboard. **Read aloud** with your device's voices, **auto-scroll**, find in chapter, and
+  dim and warmth filters for night reading.
 - **Annotations:** chapter bookmarks, text bookmarks, highlights in five colours, and notes.
 - **Library:** imports EPUB, TXT, HTML and Markdown. Add novels by hand, edit details and covers, and add, edit,
   reorder or delete chapters. Collections, sorting and filters.
 - **Search:** titles, authors, genres, tags and descriptions, plus full-text search across every chapter.
-- **Stats:** reading time, streaks, chapters read and monthly activity, all measured from your actual reading.
+- **Stats:** reading time, streaks, chapters read and monthly activity, all measured from your actual reading. A
+  daily reading goal on Home, alongside one of your own highlights to revisit each day. Rate novels out of five.
 - **Security:** optional PIN/passcode lock, and AES-256 encrypted backups.
 
 Runs on **Windows** (installer), **Android** (APK, made for the Honor MagicPad 2) and **iPhone** (as a web app
 added to the Home Screen).
+
+### New in 1.1
+
+- The Notavi wordmark, new app icons, and a short opening animation each time the app starts (tap to skip).
+- Much more motion: screens flow into each other, covers grow into the novel page, chapters slide in the direction
+  you're travelling, highlights sweep in, counters count up. Settings → Appearance → **Reduce motion** turns it
+  all off.
+- **Haptic feedback** on buttons, page turns and chapter changes: native on Android; on iPhone it needs iOS 18 or
+  later. Settings → Appearance → **Haptic feedback** turns it off.
+- **Read aloud** (🎧 in the reader's bottom bar): reads sentence by sentence, highlights the sentence being read,
+  follows along, and carries on into the next chapter. Speed and voice are in reading settings. In the Android app
+  this uses Android's own text-to-speech; if nothing is heard, open Android Settings → Accessibility →
+  Text-to-speech and make sure a voice (e.g. Google's) is installed.
+- **Auto-scroll** (gauge icon in the bottom bar): adjustable speed, hold a finger on the page to pause, moves on
+  to the next chapter by itself.
+- **Find in chapter** (🔍 in the top bar, or / and Ctrl+F).
+- **Comfort filters** in reading settings: dim the page, add warmth, or warm it automatically between 9 pm and 6 am.
+- **Ratings**, a **daily reading goal** (Settings → Reading; 20 minutes by default, 0 turns it off), and
+  **From your highlights** on Home.
 
 ---
 
@@ -201,9 +222,12 @@ Signing lets you build release APKs and update the app without losing data. It's
 | Chapter list | ☰ in the top bar | T or C |
 | Reading settings | **Aa** in the top bar | S |
 | Bookmark the chapter | Bookmark icon | B |
-| Full screen | ⛶ in the top bar | F |
+| Full screen | ⛶ in the top bar (tablet and desktop) | F |
+| Find in chapter | 🔍 in the top bar | / or Ctrl+F; Enter for the next match |
+| Read aloud | 🎧 in the bottom bar | L |
+| Auto-scroll | Gauge in the bottom bar; hold the page to pause | A |
 | Highlight, note or bookmark text | Select text, then pick a colour, Note or Bookmark | — |
-| Leave | ← in the top bar | Esc |
+| Leave (or close find, read aloud or auto-scroll first) | ← in the top bar | Esc |
 
 Tap-to-turn and swipe can be switched off in reading settings.
 

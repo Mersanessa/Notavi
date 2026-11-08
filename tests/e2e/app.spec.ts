@@ -635,3 +635,39 @@ test('auto-scrolls, and dims and warms the page', async ({ page }) => {
   expect(await filter.getAttribute('style')).toContain('--dim: 0.05');
   expect(await filter.getAttribute('style')).toContain('--warm: 0.1');
 });
+
+test('rates novels, and Home shows the daily goal and a highlight to revisit', async ({ page, context }) => {
+  await importFiles(page, ['alice-excerpt.epub', 'christmas-carol-epub2.epub']);
+  await openNovel(page, 'A Christmas Carol (excerpt)');
+  await page.getByRole('radio', { name: '4 stars' }).click();
+  await expect(page.getByTestId('stars')).toContainText('Really liked it');
+  await page.getByRole('radio', { name: '4 stars' }).click(); // tapping it again clears it
+  await expect(page.getByRole('radio', { name: '4 stars' })).toHaveAttribute('aria-checked', 'false');
+  await page.getByRole('radio', { name: '5 stars' }).click();
+
+  await page.goto('/#/library?sort=rating');
+  await expect(page.getByTestId('book-card').first()).toContainText('A Christmas Carol');
+  await expect(page.getByTestId('book-card').first().getByLabel('Rated 5 out of 5')).toBeVisible();
+
+  await page.goto('/#/');
+  await expect(page.getByTestId('goal')).toContainText('of 20 minutes today');
+  await expect(page.getByTestId('revisit')).toHaveCount(0);
+
+  await startReading(page, 'Alice’s Adventures in Wonderland (excerpt)');
+  await selectText(page, 0, 0, 39);
+  await page.getByRole('button', { name: 'Highlight in Sage' }).click();
+  await expect(page.locator('mark.hl.hl-sage')).toBeVisible();
+
+  const home = await restart(context, page, '/#/');
+  await expect(home.getByTestId('revisit')).toContainText('Alice was beginning to get very tired o');
+  await home.getByTestId('revisit').click();
+  await expect(home.locator('mark.is-flash')).toBeVisible();
+  await expect(home.getByTestId('reader')).toBeVisible();
+
+  // The goal can be changed or switched off.
+  await home.goto('/#/settings');
+  for (let i = 0; i < 4; i++) await home.getByRole('button', { name: 'Decrease daily reading goal' }).click();
+  await home.goto('/#/');
+  await expect(home.getByTestId('goal')).toHaveCount(0);
+  await expect(home.getByTestId('revisit')).toBeVisible();
+});

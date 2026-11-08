@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "android",
+  "description": "Read aloud through Android's own text-to-speech engine (the WebView has none).",
+  "platforms": ["android"],
+  "windows": ["main"],
+  "permissions": ["tts:default"]
+}

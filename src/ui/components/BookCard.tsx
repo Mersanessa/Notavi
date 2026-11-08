@@ -1,4 +1,5 @@
 import { Heart } from 'lucide-react';
+import { StarsShown } from './Stars';
 import type { NovelSummary } from '../../data/model';
 import { href, routes } from '../../app/router';
 import { Cover } from './Cover';
@@ -38,6 +39,7 @@ export function BookCard({ novel, to }: { novel: NovelSummary; to?: string }) {
           <span className="book-card__count">{chapterCount(novel)}</span>
         </span>
         {novel.genres[0] && <span className="book-card__genre">{novel.genres.slice(0, 2).join(', ')}</span>}
+        <StarsShown value={novel.rating} />
       </div>
     </a>
   );
@@ -57,6 +59,7 @@ export function BookRow({ novel }: { novel: NovelSummary }) {
         <span className="book-row__sub">
           {novel.author || 'Unknown author'}
           {novel.genres[0] && <span className="book-row__genre">{novel.genres.slice(0, 2).join(', ')}</span>}
+          <StarsShown value={novel.rating} />
         </span>
       </div>
       <StatusBadge status={novel.status} />
