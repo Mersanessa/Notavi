@@ -1852,3 +1852,35 @@ button.heatmap__cell:focus-visible {
 .book-card__text .stars-shown {
   margin: 2px 0 0;
 }
+
+/* ================================================================ read as: web novel / book */
+.format-switch {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+}
+.format-switch__label {
+  font-size: var(--t-sm);
+  color: var(--text-3);
+}
+.format-switch .segmented__opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chapter-row.is-book-only {
+  opacity: 0.62;
+}
+.chapter-row.is-book-only .chapter-row__title {
+  font-style: italic;
+}
+.chapter-row__tag {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--rule);
+  font-size: var(--t-xs);
+  color: var(--text-3);
+  white-space: nowrap;
+}

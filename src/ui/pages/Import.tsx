@@ -3,7 +3,7 @@ import { ArrowDown, ArrowLeft, ArrowUp, CircleAlert, CircleCheck, FileText, Laye
 import { db, mutate, useStore } from '../../app/store';
 import { useDocumentTitle } from '../../app/hooks';
 import { goBack, href, navigate, routes } from '../../app/router';
-import { CONTENT_TYPES, type ContentType, type ParsedNovel } from '../../data/model';
+import { CONTENT_TYPES, type ContentType, type NewChapter, type ParsedNovel } from '../../data/model';
 import { appendChapters, chapterTitles, createNovel } from '../../data/novels';
 import { ACCEPT_ATTR, parseFile } from '../../import';
 import { auditPlan, chaptersFromPlan, nextChapterNumber, planLayout, suggestWebTitles, volumeNumber, type PlanItem, type PlanOptions, type Volume } from '../../import/layout';
@@ -165,7 +165,7 @@ export function ImportPage() {
     update(it.key, { state: 'importing' });
     const vols = volumesOf(it);
     // Use the arrangement only if it passes the word check; otherwise import exactly as laid out in the file.
-    const chapters = auditPlan(vols, it.plan).ok
+    const chapters: NewChapter[] = auditPlan(vols, it.plan).ok
       ? chaptersFromPlan(it.plan)
       : vols.flatMap((v) => v.sections.map((s) => ({ title: s.title, content: s.content })));
     const images = it.parts.flatMap((p) => p.parsed.images ?? []);
@@ -190,7 +190,7 @@ export function ImportPage() {
           { cover: first.cover, chapters, images },
         ),
       );
-      update(it.key, id ? { state: 'done', novelId: id, added: chapters.length } : { state: 'ready' });
+      update(it.key, id ? { state: 'done', novelId: id, added: chapters.filter((c) => !c.bookOnly).length } : { state: 'ready' });
     } else {
       const n = await mutate((d) => appendChapters(d, it.target, chapters, images));
       update(it.key, n !== undefined ? { state: 'done', novelId: it.target, added: n } : { state: 'ready' });

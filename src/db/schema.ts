@@ -168,6 +168,12 @@ export const MIGRATIONS: string[] = [
   /* v2 (1.1): your own star rating, 0 = not rated. */ `
   ALTER TABLE novels ADD COLUMN rating INTEGER NOT NULL DEFAULT 0 CHECK (rating BETWEEN 0 AND 5);
   `,
+  /* v3 (1.2): read each novel as a web novel or as a book. Nothing is thrown away to make a web novel:
+     front/back matter is kept as book_only chapters, and the book's own chapter titles in original_title. */ `
+  ALTER TABLE novels ADD COLUMN reading_mode TEXT NOT NULL DEFAULT 'web' CHECK (reading_mode IN ('web','book'));
+  ALTER TABLE chapters ADD COLUMN book_only INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE chapters ADD COLUMN original_title TEXT NOT NULL DEFAULT '';
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

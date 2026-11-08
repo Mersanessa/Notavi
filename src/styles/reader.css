@@ -1050,3 +1050,286 @@ html:has(.reader) {
 .reader.has-dock .reader__page {
   padding-bottom: calc(170px + var(--safe-bottom));
 }
+
+/* ================================================================ book format (pages) */
+.reader--book {
+  --pt: calc(var(--safe-top-clear) + 52px);
+  --pb: calc(var(--safe-bottom) + 52px);
+}
+.reader--book .reader__scroll {
+  overflow: hidden;
+  touch-action: pan-y pinch-zoom;
+  scrollbar-width: none;
+}
+/* The chapter flows into columns one screen wide; turning a page slides the flow by one screen. */
+.reader.reader--book .reader__page {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  max-width: none;
+  height: 100%;
+  margin: 0;
+  padding: var(--pt) var(--pad-x) var(--pb);
+  column-count: var(--cols);
+  column-gap: var(--gap);
+  column-fill: auto;
+  transform: translate3d(calc(var(--page) * -1 * var(--stride) + var(--drag, 0px)), 0, 0);
+  transition: transform 520ms cubic-bezier(0.2, 0.75, 0.15, 1);
+  will-change: transform;
+}
+.reader--book .reader__page.is-dragging,
+.reader--book .reader__page.no-anim {
+  transition: none;
+}
+.reader--book .reader__page.is-fading {
+  opacity: 0;
+  transition: opacity 140ms var(--ease);
+}
+.reader--book .reader__page.is-turning-next {
+  animation: book-in-next 460ms var(--ease-out) both;
+}
+.reader--book .reader__page.is-turning-prev {
+  animation: book-in-prev 460ms var(--ease-out) both;
+}
+@keyframes book-in-next {
+  from {
+    opacity: 0;
+    translate: 48px 0;
+  }
+}
+@keyframes book-in-prev {
+  from {
+    opacity: 0;
+    translate: -48px 0;
+  }
+}
+.reader__flow-end {
+  display: block;
+  height: 0;
+  break-before: avoid;
+}
+
+/* Typesetting */
+.reader--book .reading-text {
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'kern', 'liga', 'onum';
+  hanging-punctuation: first;
+  widows: 2;
+  orphans: 2;
+}
+.reader--book .reading-text h1,
+.reader--book .reading-text h2,
+.reader--book .reading-text h3 {
+  break-after: avoid;
+  text-align: center;
+}
+.reader--book .reading-text img,
+.reader--book .reading-text figure,
+.reader--book .reading-text table {
+  break-inside: avoid;
+}
+.reader--book .reading-text img {
+  max-height: calc(100vh - var(--pt) - var(--pb) - 3em);
+  object-fit: contain;
+}
+.reader--book .reading-text hr {
+  break-after: avoid;
+}
+/* The first paragraph of a chapter, and after a scene break, starts flush with a drop cap. */
+.reader--book .reading-text > p:first-of-type {
+  text-indent: 0;
+}
+.reader--book:not(.is-matter) .reading-text > p:first-of-type::first-letter {
+  float: left;
+  font-family: var(--font-display);
+  font-size: 3.35em;
+  line-height: 0.82;
+  font-weight: 400;
+  padding: 0.07em 0.09em 0 0;
+  color: var(--r-accent);
+}
+.reader--book .reading-text hr + p {
+  text-indent: 0;
+}
+
+/* Chapter opener: sunk, centred, with the brass lozenge. */
+.reader--book .chapter-head {
+  padding-top: max(8vh, 3em);
+  margin-bottom: 2.6em;
+  text-align: center;
+  break-inside: avoid;
+}
+.reader--book .chapter-head__novel,
+.reader--book .chapter-head__meta {
+  display: none;
+}
+.reader--book .chapter-head__title {
+  font-size: 1.5em;
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: 0.005em;
+  text-wrap: balance;
+}
+.reader--book .chapter-head::after {
+  content: '';
+  display: block;
+  width: 7px;
+  height: 7px;
+  margin: 1.2em auto 0;
+  background: var(--r-accent);
+  transform: rotate(45deg);
+  opacity: 0.85;
+}
+
+/* The cover as the book's first page */
+.book-cover-page {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  break-after: column;
+}
+.book-cover-page .cover {
+  width: auto;
+  height: min(86%, 640px);
+  max-width: 100%;
+  font-size: clamp(14px, 3.4vh, 30px);
+  box-shadow: 0 18px 50px -12px rgb(0 0 0 / 0.45), 0 2px 6px rgb(0 0 0 / 0.2);
+}
+.book-cover-page .cover__title {
+  font-size: 1.15em;
+}
+
+/* Running head and folio, shown while reading (the bars hide them) */
+.book-running,
+.book-folio {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  display: flex;
+  justify-content: center;
+  gap: var(--gap);
+  padding: 0 var(--pad-x);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--r-muted);
+  pointer-events: none;
+  transition: opacity var(--dur-2);
+  font-variant-numeric: tabular-nums;
+}
+.book-running {
+  top: calc(var(--safe-top-clear) + 18px);
+  text-transform: uppercase;
+}
+.book-running span,
+.book-folio span {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.book-folio {
+  bottom: calc(var(--safe-bottom) + 18px);
+}
+.reader.has-chrome .book-running,
+.reader.has-chrome .book-folio {
+  opacity: 0;
+}
+.reader--book .reader__status {
+  background: none;
+}
+.reader--book .reader__status > span {
+  display: none;
+}
+.reader--book .reader__status-bar {
+  top: auto;
+  bottom: 0;
+  height: 1px;
+}
+
+/* An open book: the gutter between two pages */
+.reader--book.is-spread .reader__scroll::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 56px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent, rgb(0 0 0 / 0.05) 40%, rgb(0 0 0 / 0.12) 50%, rgb(0 0 0 / 0.05) 60%, transparent);
+  pointer-events: none;
+}
+[data-reader-theme='night'].is-spread .reader__scroll::after,
+[data-reader-theme='black'].is-spread .reader__scroll::after {
+  background: linear-gradient(90deg, transparent, rgb(0 0 0 / 0.18) 45%, rgb(0 0 0 / 0.32) 50%, rgb(0 0 0 / 0.18) 55%, transparent);
+}
+
+/* The chapter's end card is for scrolling; in a book the next page is the next chapter. */
+.reader--book .chapter-end__next,
+.reader--book .chapter-end__prev {
+  display: none;
+}
+.reader--book .chapter-end {
+  break-inside: avoid;
+  border: 0;
+}
+/* Title pages, copyright and contents: set centred, as books print them. */
+.reader--book.is-matter .reading-text {
+  text-align: center;
+  hyphens: manual;
+  padding-top: 6vh;
+}
+.reader--book.is-matter .reading-text p {
+  text-indent: 0;
+}
+
+/* Format choice in reading settings */
+.format-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-2);
+}
+.format-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--r-rule);
+  background: var(--r-surface);
+  color: var(--r-text);
+  text-align: left;
+  transition: border-color var(--dur-2), background var(--dur-2), transform var(--dur-2) var(--ease-spring);
+}
+.format-card svg {
+  color: var(--r-muted);
+  margin-bottom: 4px;
+}
+.format-card.is-on {
+  border-color: var(--r-accent);
+  background: color-mix(in oklab, var(--r-accent) 10%, var(--r-surface));
+}
+.format-card.is-on svg {
+  color: var(--r-accent);
+}
+.format-card:active {
+  transform: scale(0.97);
+}
+.format-card__name {
+  font-weight: 650;
+  font-size: var(--t-md);
+}
+.format-card__hint {
+  font-size: var(--t-xs);
+  color: var(--r-muted);
+}
+.rs-note {
+  margin-top: var(--s-2);
+  font-size: var(--t-xs);
+  color: var(--r-muted);
+  line-height: 1.5;
+}

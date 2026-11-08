@@ -39,6 +39,8 @@ export interface Novel {
   favourite: boolean;
   /** Your own rating, 1–5 stars; 0 = not rated. */
   rating: number;
+  /** How the novel is presented: scrolling web-novel chapters, or a paginated book. Switchable at any time. */
+  readingMode: ReadingMode;
   personalNotes: string;
   coverId: string | null;
   language: string;
@@ -59,11 +61,26 @@ export interface NovelSummary extends Novel {
   percent: number;
 }
 
+export type ReadingMode = 'web' | 'book';
+
+/** A chapter as handed to storage. */
+export interface NewChapter {
+  title: string;
+  content: string;
+  /** Front/back matter that only the book format shows (title page, copyright, contents…). */
+  bookOnly?: boolean;
+  /** The book's own title for this chapter, when the web-novel title differs. */
+  originalTitle?: string;
+}
+
 export interface ChapterMeta {
   id: string;
   novelId: string;
   position: number;
   title: string;
+  /** The book's own title (falls back to `title`). */
+  originalTitle: string;
+  bookOnly: boolean;
   wordCount: number;
   createdAt: number;
   updatedAt: number;

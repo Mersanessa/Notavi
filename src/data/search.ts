@@ -40,11 +40,12 @@ export async function searchText(
 ): Promise<{ hits: TextHit[]; total: number }> {
   const q = toFtsQuery(query);
   if (!q) return { hits: [], total: 0 };
-  const where = opts.novelId ? 'chapter_fts MATCH ? AND c.novel_id = ?' : 'chapter_fts MATCH ?';
+  const visible = "(c.book_only = 0 OR n.reading_mode = 'book')";
+  const where = opts.novelId ? `chapter_fts MATCH ? AND c.novel_id = ? AND ${visible}` : `chapter_fts MATCH ? AND ${visible}`;
   const params = opts.novelId ? [q, opts.novelId] : [q];
-  const total = (await db.get<{ n: number }>(`SELECT count(*) AS n FROM chapter_fts f JOIN chapters c ON c.rid = f.rowid WHERE ${where}`, params))!.n;
+  const total = (await db.get<{ n: number }>(`SELECT count(*) AS n FROM chapter_fts f JOIN chapters c ON c.rid = f.rowid JOIN novels n ON n.id = c.novel_id WHERE ${where}`, params))!.n;
   const rows = await db.all<{ chapterId: string; novelId: string; novelTitle: string; chapterTitle: string; position: number; snip: string }>(
-    `SELECT c.id AS chapterId, c.novel_id AS novelId, n.title AS novelTitle, c.title AS chapterTitle, c.position AS position,
+    `SELECT c.id AS chapterId, c.novel_id AS novelId, n.title AS novelTitle, CASE WHEN n.reading_mode = 'book' AND c.original_title != '' THEN c.original_title ELSE c.title END AS chapterTitle, c.position AS position,
             snippet(chapter_fts, 1, '${START}', '${END}', '…', 18) AS snip
      FROM chapter_fts f JOIN chapters c ON c.rid = f.rowid JOIN novels n ON n.id = c.novel_id
      WHERE ${where}

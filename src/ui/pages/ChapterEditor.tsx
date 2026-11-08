@@ -30,7 +30,7 @@ export function ChapterEditorPage({ novelId, chapterId }: { novelId: string; cha
   const at = query.get('at');
   useDocumentTitle(creating ? 'New chapter' : 'Edit chapter');
   const data = useAsync(async () => {
-    const [novel, chapter, chapters] = await Promise.all([getNovel(db(), novelId), chapterId ? getChapter(db(), chapterId) : undefined, listChapters(db(), novelId)]);
+    const [novel, chapter, chapters] = await Promise.all([getNovel(db(), novelId), chapterId ? getChapter(db(), chapterId) : undefined, listChapters(db(), novelId, { all: true })]);
     return { novel, chapter, count: chapters.length };
   }, [novelId, chapterId]);
 
@@ -48,7 +48,7 @@ export function ChapterEditorPage({ novelId, chapterId }: { novelId: string; cha
     if (!data.data || loaded.current) return;
     loaded.current = true;
     const ch = data.data.chapter;
-    setTitle(ch?.title ?? `Chapter ${(at ? Number(at) : data.data.count) + 1}`);
+    setTitle(ch ? (data.data.novel?.readingMode === 'book' ? ch.originalTitle : ch.title) : `Chapter ${(at ? Number(at) : data.data.count) + 1}`);
     const raw = ch?.content ?? '';
     const refs = Array.from(new Set(Array.from(raw.matchAll(/notavi-blob:([a-z0-9-]+)/gi), (m) => m[1])));
     void Promise.all(refs.map((id) => blobUrl(id))).then((urls) => {
@@ -113,7 +113,7 @@ export function ChapterEditorPage({ novelId, chapterId }: { novelId: string; cha
     if (creating) {
       ok = await mutate((d) => addChapter(d, novelId, { title, content }, at ? Number(at) : undefined), 'Chapter added');
     } else {
-      ok = await mutate((d) => updateChapter(d, chapterId!, { title, content }).then(() => true), 'Chapter saved');
+      ok = await mutate((d) => updateChapter(d, chapterId!, data.data?.novel?.readingMode === 'book' && data.data.chapter && data.data.chapter.originalTitle !== data.data.chapter.title ? { originalTitle: title, content } : { title, content }).then(() => true), 'Chapter saved');
     }
     setSaving(false);
     if (ok) {

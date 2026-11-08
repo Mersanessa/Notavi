@@ -16,7 +16,27 @@ Single source of truth for progress. If context resets, resume from here.
 | 8 | Security, app lock, encrypted backup/restore | ✅ done |
 | 9 | Testing | ✅ 78 unit + 18 end-to-end tests passing (headless Chrome) |
 | 10 | Packaging: PWA, CI, README | ✅ done; CI green on GitHub (Windows installer, Android APK, PWA) |
-| 1.1 | Brand, motion, haptics, reader extras, goals | ✅ done — 84 unit + 23 end-to-end tests passing |
+| 1.1 | Brand, motion, haptics, reader extras, goals | ✅ done |
+| 1.2 | Read as web novel or book (paginated, Apple Books-style), reversible | ✅ done — 90 unit + 24 end-to-end tests passing |
+
+## Version 1.2 — read as a web novel or as a book
+
+Asked for: an option to read an EPUB as an ebook or as a web novel, professional (Apple Books as reference), and
+**not irreversible**.
+
+- **Data (schema v3)**: `novels.reading_mode` ('web' | 'book'), `chapters.book_only`, `chapters.original_title`.
+  The web-novel layout no longer drops set-aside sections; they're stored as book-only chapters, and the book's own
+  titles are stored next to the web titles. Which chapters count (lists, counts, progress position, words, search)
+  is decided in SQL by `book_only = 0 OR reading_mode = 'book'`. Switching format only flips `reading_mode`.
+- **Same text in both formats**, so reading anchors (block + fraction) and annotation offsets are shared: the
+  place, highlights and notes carry across a switch. Tested both ways in e2e.
+- **Book reader**: the chapter flows into CSS columns one screen wide (`column-count` 1 or 2, gap = 2 × side
+  margin, so one page turn = one screen width); pages slide with a transform and follow the finger. Page anchors
+  come from where block fragments sit (`capturePageAnchor`/`pageForAnchor` in `anchors.ts`), independent of the
+  transform. Cover page, centred front matter, sunk chapter openers with the brass lozenge, drop cap, running
+  heads, folios, gutter shadow on spreads. Separate `reader.book` typography profile.
+- Existing novels imported before 1.2 lost their set-aside sections at import (that was the old behaviour); Book
+  format still works for them, minus those pages.
 
 ## Version 1.1 (November 2026)
 

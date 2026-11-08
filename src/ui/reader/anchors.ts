@@ -177,3 +177,57 @@ export function findMatches(text: string, query: string): [number, number][] {
   }
   return out.sort((a, b) => a[0] - b[0]).filter((r, i, a) => i === 0 || r[0] >= a[i - 1][1]);
 }
+
+/* ------------------------------------------------------------------ pages (book format) */
+
+/**
+ * Book format lays a chapter out in CSS columns, one page (or a two-page spread) per `stride` pixels.
+ * Page numbers come from where things sit horizontally, measured relative to the flow's own box, so
+ * they don't depend on the page-turn transform.
+ */
+export interface PageFlow {
+  el: HTMLElement;
+  stride: number;
+  padX: number;
+}
+
+export function pageOfX(flow: PageFlow, x: number): number {
+  const left = flow.el.getBoundingClientRect().left + flow.padX;
+  return Math.max(0, Math.floor((x - left + 1) / flow.stride));
+}
+
+function fragments(el: HTMLElement): DOMRect[] {
+  return Array.from(el.getClientRects()).filter((r) => r.width > 0 || r.height > 0);
+}
+
+/** Where the given page starts, as a reading anchor. */
+export function capturePageAnchor(blocks: HTMLElement[], flow: PageFlow, page: number): Anchor {
+  if (page <= 0 || !blocks.length) return { blockIndex: 0, blockOffset: 0 };
+  for (let i = 0; i < blocks.length; i++) {
+    const frs = fragments(blocks[i]);
+    const total = frs.reduce((s, r) => s + r.height, 0);
+    let before = 0;
+    for (const r of frs) {
+      if (pageOfX(flow, r.left) >= page) return { blockIndex: i, blockOffset: total > 0 ? Math.min(0.999, before / total) : 0 };
+      before += r.height;
+    }
+  }
+  return { blockIndex: blocks.length - 1, blockOffset: 0 };
+}
+
+/** The page holding an anchor. */
+export function pageForAnchor(blocks: HTMLElement[], flow: PageFlow, a: Anchor): number {
+  if (a.blockIndex <= 0 && a.blockOffset <= 0) return 0;
+  const el = blocks[Math.min(a.blockIndex, blocks.length - 1)];
+  if (!el) return 0;
+  const frs = fragments(el);
+  if (!frs.length) return 0;
+  const total = frs.reduce((s, r) => s + r.height, 0);
+  const target = a.blockOffset * total;
+  let before = 0;
+  for (const r of frs) {
+    if (before + r.height > target + 1) return pageOfX(flow, r.left);
+    before += r.height;
+  }
+  return pageOfX(flow, frs[frs.length - 1].left);
+}

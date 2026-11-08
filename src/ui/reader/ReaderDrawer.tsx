@@ -39,7 +39,7 @@ export function ReaderDrawer({
 
   const shown = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return s ? chapters.filter((c) => c.title.toLowerCase().includes(s) || String(c.position + 1) === s) : chapters;
+    return s ? chapters.filter((c) => c.title.toLowerCase().includes(s) || String(chapters.indexOf(c) + 1) === s) : chapters;
   }, [chapters, q]);
 
   return (
@@ -65,7 +65,7 @@ export function ReaderDrawer({
             {shown.map((c) => (
               <li key={c.id}>
                 <button type="button" className={`drawer-chapter ${c.id === currentId ? 'is-current' : ''} ${c.completed ? 'is-read' : ''}`} onClick={() => onPick(c)} aria-current={c.id === currentId ? 'true' : undefined}>
-                  <span className="drawer-chapter__num">{c.position + 1}</span>
+                  <span className="drawer-chapter__num">{chapters.indexOf(c) + 1}</span>
                   <span className="drawer-chapter__title">{c.title}</span>
                   {c.completed && <CircleCheck size={14} aria-label="Read" className="drawer-chapter__check" />}
                 </button>

@@ -469,20 +469,20 @@ test('combines ebook volumes into one web-novel chapter list', async ({ page }) 
   await expect(page.locator('.volume-order__name')).toHaveText(['The Lantern Road, Volume 1', 'The Lantern Road, Volume 2']);
   await expect(page.getByTestId('audit-ok')).toContainText('words accounted for');
   await expect(page.locator('.plan-summary')).toContainText('6 chapters');
-  await expect(page.locator('.plan-summary')).toContainText('Set aside: Title Page, Copyright, About the Author, Copyright');
+  await expect(page.locator('.plan-summary')).toContainText('Kept for the book format only: Title Page, Copyright, About the Author, Copyright');
   await expect(page.locator('.import-item__fields input').first()).toHaveValue('The Lantern Road');
 
   // Bring "About the Author" back and rename a chapter in the review.
   await page.getByTestId('review-chapters').click();
-  await page.getByRole('checkbox', { name: 'Keep About the Author' }).check();
+  await page.getByRole('checkbox', { name: 'Include About the Author in the web novel' }).check();
   await page.getByRole('textbox', { name: 'Title for Chapter Three' }).fill('Chapter 3: Cinders');
   await page.getByTestId('plan-apply').click();
-  await expect(page.locator('.plan-summary')).toContainText('Set aside: Title Page, Copyright, Copyright');
+  await expect(page.locator('.plan-summary')).toContainText('Kept for the book format only: Title Page, Copyright, Copyright');
 
   await page.getByTestId('import-one').click();
   await page.getByRole('link', { name: /Open “The Lantern Road”/ }).click();
   await page.getByRole('tab', { name: /Chapters/ }).click();
-  await expect(page.locator('.chapter-row__title')).toHaveText([
+  await expect(page.locator('.chapter-row:not(.is-book-only) .chapter-row__title')).toHaveText([
     'Prologue',
     'Chapter 1',
     'Chapter 2: The Gate',
@@ -512,8 +512,8 @@ test('adds a later volume to the end of an existing novel, continuing the number
   await expect(page.getByText('Added 3 chapters.')).toBeVisible();
   await openNovel(page, 'The Lantern Road, Volume 1');
   await page.getByRole('tab', { name: /Chapters/ }).click();
-  await expect(page.locator('.chapter-row__title').last()).toHaveText('Chapter 6: Old Debts');
-  await expect(page.locator('.chapter-row__title').nth(6)).toHaveText('Chapter 5: New Dawn');
+  await expect(page.locator('.chapter-row:not(.is-book-only) .chapter-row__title').last()).toHaveText('Chapter 6: Old Debts');
+  await expect(page.locator('.chapter-row:not(.is-book-only) .chapter-row__title').nth(6)).toHaveText('Chapter 5: New Dawn');
 });
 
 test('pastes several chapters at once and splits them at their headings', async ({ page }) => {
@@ -670,4 +670,84 @@ test('rates novels, and Home shows the daily goal and a highlight to revisit', a
   await home.goto('/#/');
   await expect(home.getByTestId('goal')).toHaveCount(0);
   await expect(home.getByTestId('revisit')).toBeVisible();
+});
+
+test.describe('book format on a phone-sized screen', () => {
+test.use({ viewport: { width: 390, height: 844 } });
+test('reads an ebook as a book with pages, and switches to web novel and back without losing the place', async ({ page }) => {
+  await importFiles(page, ['series/lantern-road-vol-1.epub']);
+  await openNovel(page, 'The Lantern Road, Volume 1');
+  // As a web novel the title page and copyright are kept, but only for the book.
+  await page.getByRole('tab', { name: /Chapters/ }).click();
+  await expect(page.locator('.chapter-row.is-book-only').first()).toContainText('In the book only');
+  const webCount = await page.locator('.chapter-row:not(.is-book-only)').count();
+
+  await page.getByRole('radio', { name: /Book/ }).click();
+  await expect(page.locator('.chapter-row.is-book-only')).toHaveCount(0);
+  expect(await page.locator('.chapter-row').count()).toBeGreaterThan(webCount);
+
+  await page.getByTestId('start-reading').click();
+  const reader = page.getByTestId('reader');
+  await expect(reader).toHaveClass(/reader--book/);
+  await expect(page.locator('.book-cover-page')).toBeVisible(); // the cover is the first page
+  const folio = page.getByTestId('book-folio');
+  await expect(folio).toContainText(/^1/);
+
+  // Turn pages until we're inside the Prologue, a few pages in.
+  for (let i = 0; i < 12; i++) {
+    if ((await page.locator('.reader__chapter').textContent())?.includes('Prologue') && (await folio.textContent())!.startsWith('2 ')) break;
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(80);
+  }
+  await expect(page.locator('.reader__chapter')).toHaveText('Prologue');
+  // The page actually moved: the flow is shifted by whole screens.
+  const shift = await page.getByTestId('reader-page').evaluate((el) => getComputedStyle(el).getPropertyValue('--page'));
+  expect(Number(shift)).toBeGreaterThan(0);
+  const bookFirst = await page.evaluate(() => {
+    const flow = document.querySelector('[data-testid=reader-page]')!;
+    const ps = Array.from(document.querySelectorAll('[data-testid=chapter-text] p'));
+    const vw = window.innerWidth;
+    return ps.find((p) => Array.from(p.getClientRects()).some((r) => r.left >= 0 && r.left < vw))?.textContent?.slice(0, 40) ?? '';
+    void flow;
+  });
+
+  // Switch to web novel from the reader: same chapter, same passage on screen.
+  await page.keyboard.press('s');
+  await page.getByTestId('format-web').click();
+  await expect(reader).not.toHaveClass(/reader--book/);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.chapter-head__title')).toHaveText('Prologue');
+  await expect.poll(async () => (await firstVisibleText(page)).slice(0, 40)).toBe(bookFirst);
+
+  // …and back to the book, on the same page.
+  await page.keyboard.press('s');
+  await page.getByTestId('format-book').click();
+  await expect(reader).toHaveClass(/reader--book/);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.reader__chapter')).toHaveText('Prologue');
+  const again = await page.evaluate(() => {
+    const ps = Array.from(document.querySelectorAll('[data-testid=chapter-text] p'));
+    const vw = window.innerWidth;
+    return ps.find((p) => Array.from(p.getClientRects()).some((r) => r.left >= 0 && r.left < vw))?.textContent?.slice(0, 40) ?? '';
+  });
+  expect(again).toBe(bookFirst);
+
+  // The page is remembered.
+  await page.keyboard.press('ArrowRight');
+  await page.waitForTimeout(1200);
+  const onPage = () =>
+    page.evaluate(() => {
+      const ps = Array.from(document.querySelectorAll('[data-testid=chapter-text] p'));
+      const vw = window.innerWidth;
+      return ps.find((p) => Array.from(p.getClientRects()).some((r) => r.left >= 0 && r.left < vw))?.textContent?.slice(0, 40) ?? '';
+    });
+  const remembered = await onPage();
+  await page.reload();
+  await expect(reader).toHaveClass(/reader--book/);
+  await expect.poll(onPage).toBe(remembered);
+
+  // Turning back past the first page goes to the previous section's last page.
+  for (let i = 0; i < 12 && (await page.locator('.reader__chapter').textContent()) === 'Prologue'; i++) await page.keyboard.press('ArrowLeft');
+  await expect(page.locator('.reader__chapter')).not.toHaveText('Prologue');
+});
 });

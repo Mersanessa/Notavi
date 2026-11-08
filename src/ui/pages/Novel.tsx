@@ -2,6 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, BookOpen, Bookmark, CheckCheck, Copy, ExternalLink, FolderPlus, Heart, Highlighter, ImagePlus, ImageOff, ListChecks, MoreHorizontal,
   NotebookPen, Pencil, Plus, RotateCcw, Search, StickyNote, Trash2, X, ArrowUpDown, Circle, CircleCheck, ClipboardPaste,
+  Eye,
+  EyeOff,
+  BookOpenText,
+  ScrollText,
 } from 'lucide-react';
 import { PasteChaptersDialog } from './PasteChapters';
 import { db, mutate, toast, useStore } from '../../app/store';
@@ -9,7 +13,7 @@ import { useAsync, useDocumentTitle } from '../../app/hooks';
 import { forgetBlob } from '../../app/blobs';
 import { goBack, href, navigate, routes, useRoute } from '../../app/router';
 import { contentTypeLabel, STATUSES, type Annotation, type AnnotationKind, type ChapterMeta, type NovelSummary, type ReadingStatus } from '../../data/model';
-import { deleteChapter, deleteNovel, listChapters, reorderChapters, setCover, updateNovel, getNovel } from '../../data/novels';
+import { deleteChapter, deleteNovel, displayTitle, listChapters, reorderChapters, setChapterBookOnly, setCover, updateNovel, getNovel } from '../../data/novels';
 import { markReadUpTo, novelReadingTime, resetProgress, setChapterRead } from '../../data/reading';
 import { deleteAnnotation, listAnnotationsForNovel, updateAnnotation } from '../../data/annotations';
 import { addToCollection, collectionsForNovel, createCollection, removeFromCollection } from '../../data/collections';
@@ -149,6 +153,7 @@ function NovelHeader({ novel }: { novel: NovelSummary }) {
           {novel.publicationStatus && <span>{novel.publicationStatus}</span>}
         </div>
         <StarRating value={novel.rating} onChange={(v) => void mutate((d) => updateNovel(d, novel.id, { rating: v }))} />
+        {novel.chapterCount > 0 && <FormatSwitch novel={novel} />}
         {novel.chapterCount > 0 && (
           <div className="novel-head__progress">
             <Ribbon value={novel.percent} label={`${Math.round(novel.percent * 100)}% read`} />
@@ -195,6 +200,26 @@ function NovelHeader({ novel }: { novel: NovelSummary }) {
       </div>
       <CollectionsDialog novel={novel} open={collectionsOpen} onClose={() => setCollectionsOpen(false)} />
     </section>
+  );
+}
+
+/** Read as a web novel or as a book. Only presentation changes, so it can be switched back and forth freely. */
+export function FormatSwitch({ novel, onChange }: { novel: NovelSummary; onChange?: (m: NovelSummary['readingMode']) => void }) {
+  return (
+    <div className="format-switch">
+      <span className="format-switch__label">Read as</span>
+      <Segmented
+        label="Read as"
+        value={novel.readingMode}
+        onChange={(m) =>
+          void mutate((d) => updateNovel(d, novel.id, { readingMode: m }), m === 'book' ? 'Reading as a book' : 'Reading as a web novel').then(() => onChange?.(m))
+        }
+        options={[
+          { value: 'web', label: (<><ScrollText size={15} aria-hidden /> Web novel</>), title: 'Scrolling chapters, web-novel titles' },
+          { value: 'book', label: (<><BookOpenText size={15} aria-hidden /> Book</>), title: 'Turn pages like a printed book, with its front matter and original titles' },
+        ]}
+      />
+    </div>
   );
 }
 
@@ -322,7 +347,16 @@ function AboutTab({ novel }: { novel: NovelSummary }) {
 /* ------------------------------------------------------------------ chapters */
 
 function ChaptersTab({ novel }: { novel: NovelSummary }) {
-  const chapters = useAsync(() => listChapters(db(), novel.id), [novel.id]);
+  // Every section, so reordering covers them all; book-only ones are marked when reading as a web novel.
+  const chapters = useAsync(() => listChapters(db(), novel.id, { all: true }), [novel.id, novel.readingMode]);
+  const asBook = novel.readingMode === 'book';
+  const numbers = useMemo(() => {
+    const m = new Map<string, number | null>();
+    let n = 0;
+    for (const c of chapters.data ?? []) m.set(c.id, c.bookOnly && !asBook ? null : ++n);
+    return m;
+  }, [chapters.data, asBook]);
+  const titleOf = (c: ChapterMeta) => displayTitle(c, novel.readingMode);
   const [mode, setMode] = useState<'titles' | 'text'>('titles');
   const [q, setQ] = useState('');
   const [reorder, setReorder] = useState(false);
@@ -342,8 +376,9 @@ function ChaptersTab({ novel }: { novel: NovelSummary }) {
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return mode === 'titles' && s ? list.filter((c) => c.title.toLowerCase().includes(s) || String(c.position + 1) === s) : list;
-  }, [list, q, mode]);
+    return mode === 'titles' && s ? list.filter((c) => titleOf(c).toLowerCase().includes(s) || String(numbers.get(c.id)) === s) : list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [list, q, mode, numbers]);
 
   if (chapters.loading && !chapters.data) return <Spinner />;
   if (!list.length)
@@ -375,6 +410,9 @@ function ChaptersTab({ novel }: { novel: NovelSummary }) {
     { label: c.completed ? 'Mark as unread' : 'Mark as read', icon: c.completed ? Circle : CircleCheck, onSelect: () => void mutate((d) => setChapterRead(d, novel.id, c.id, !c.completed)) },
     { label: 'Mark all before this as read', icon: CheckCheck, disabled: c.position === 0, onSelect: () => void mutate((d) => markReadUpTo(d, novel.id, c.position), 'Marked as read') },
     { label: 'Insert chapter after', icon: Plus, onSelect: () => navigate(routes.newChapter(novel.id) + `?at=${c.position + 1}`) },
+    c.bookOnly
+      ? { label: 'Show in the web novel too', icon: Eye, onSelect: () => void mutate((d) => setChapterBookOnly(d, c.id, false), 'Now part of the web novel').then(() => chapters.reload()) }
+      : { label: 'Show only in the book', icon: EyeOff, onSelect: () => void mutate((d) => setChapterBookOnly(d, c.id, true), 'Now shown only when reading as a book').then(() => chapters.reload()) },
     'divider',
     {
       label: 'Delete chapter',
@@ -433,12 +471,12 @@ function ChaptersTab({ novel }: { novel: NovelSummary }) {
       {reorder ? (
         <ReorderList
           items={list}
-          label={(c) => c.title}
+          label={(c) => titleOf(c)}
           onReorder={(ids) => void mutate((d) => reorderChapters(d, novel.id, ids)).then(() => chapters.reload())}
           renderItem={(c, i) => (
             <span className="chapter-row__title">
               <span className="chapter-row__num">{i + 1}</span>
-              {c.title}
+              {titleOf(c)}
             </span>
           )}
         />
@@ -450,7 +488,7 @@ function ChaptersTab({ novel }: { novel: NovelSummary }) {
               <li key={h.chapterId}>
                 <a className="text-hit" href={href(routes.read(novel.id, h.chapterId, `find=${encodeURIComponent(q)}`))}>
                   <span className="text-hit__title">
-                    <span className="chapter-row__num">{h.position + 1}</span> {h.chapterTitle}
+                    <span className="chapter-row__num">{numbers.get(h.chapterId) ?? '·'}</span> {h.chapterTitle}
                   </span>
                   <span className="text-hit__snippet" dangerouslySetInnerHTML={{ __html: h.snippet }} />
                 </a>
@@ -462,11 +500,14 @@ function ChaptersTab({ novel }: { novel: NovelSummary }) {
         <ol className="chapter-list">
           {filtered.map((c) => {
             const current = novel.progress?.chapterId === c.id;
+            const num = numbers.get(c.id);
+            const Row = num == null ? 'div' : 'a';
             return (
-              <li key={c.id} id={`ch-${c.id}`} className={`chapter-row ${c.completed ? 'is-read' : ''} ${current ? 'is-current' : ''}`}>
-                <a className="chapter-row__link" href={href(routes.read(novel.id, c.id))}>
-                  <span className="chapter-row__num">{c.position + 1}</span>
-                  <span className="chapter-row__title">{c.title}</span>
+              <li key={c.id} id={`ch-${c.id}`} className={`chapter-row ${c.completed ? 'is-read' : ''} ${current ? 'is-current' : ''} ${num == null ? 'is-book-only' : ''}`}>
+                <Row className="chapter-row__link" {...(num == null ? {} : { href: href(routes.read(novel.id, c.id)) })}>
+                  <span className="chapter-row__num">{num ?? '·'}</span>
+                  <span className="chapter-row__title">{titleOf(c)}</span>
+                  {num == null && <span className="chapter-row__tag">In the book only</span>}
                   {current && <span className="chapter-row__here">Reading</span>}
                   {c.wordCount > 0 && (
                     <span className="chapter-row__meta">
@@ -475,8 +516,8 @@ function ChaptersTab({ novel }: { novel: NovelSummary }) {
                     </span>
                   )}
                   {c.completed && <CircleCheck className="chapter-row__check" size={16} aria-label="Read" />}
-                </a>
-                <Menu label={`Actions for ${c.title}`} items={chapterMenu(c)} trigger={(p) => <IconButton icon={MoreHorizontal} size="sm" label={`Actions for ${c.title}`} {...p} />} />
+                </Row>
+                <Menu label={`Actions for ${titleOf(c)}`} items={chapterMenu(c)} trigger={(p) => <IconButton icon={MoreHorizontal} size="sm" label={`Actions for ${titleOf(c)}`} {...p} />} />
               </li>
             );
           })}

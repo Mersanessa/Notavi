@@ -20,6 +20,39 @@ export const READER_THEMES: { value: ReaderTheme; label: string }[] = [
   { value: 'paper', label: 'Paper' },
 ];
 
+/** Typography used when a novel is read as a book; kept apart so each format keeps its own feel. */
+export interface BookTypography {
+  font: ReaderFont;
+  fontSize: number;
+  fontWeight: number;
+  lineHeight: number;
+  paragraphSpacing: number;
+  measure: number;
+  margin: number;
+  align: 'left' | 'justify';
+  indent: boolean;
+  hyphenate: boolean;
+  /** Two pages side by side when the screen is wide and in landscape. */
+  spreads: boolean;
+}
+
+export const TYPOGRAPHY_KEYS = ['font', 'fontSize', 'fontWeight', 'lineHeight', 'paragraphSpacing', 'measure', 'margin', 'align', 'indent', 'hyphenate'] as const;
+
+/** Printed-book defaults: a book serif, justified and hyphenated, indented paragraphs with no gaps between them. */
+export const DEFAULT_BOOK: BookTypography = {
+  font: 'literata',
+  fontSize: 19,
+  fontWeight: 400,
+  lineHeight: 1.6,
+  paragraphSpacing: 0,
+  measure: 66,
+  margin: 28,
+  align: 'justify',
+  indent: true,
+  hyphenate: true,
+  spreads: true,
+};
+
 export interface ReaderPrefs {
   font: ReaderFont;
   fontSize: number; // px
@@ -47,6 +80,7 @@ export interface ReaderPrefs {
   dim: number;
   warmth: number;
   warmAtNight: boolean;
+  book: BookTypography;
 }
 
 /** Defaults mirror the reading feel the user is used to: Nunito Sans with airy line spacing. */
@@ -74,6 +108,7 @@ export const DEFAULT_READER: ReaderPrefs = {
   dim: 0,
   warmth: 0,
   warmAtNight: false,
+  book: DEFAULT_BOOK,
 };
 
 export type HomeSection = 'continue' | 'today' | 'recentChapters' | 'recentlyAdded' | 'recentlyUpdated' | 'favourites' | 'recommended' | 'collections' | 'stats';

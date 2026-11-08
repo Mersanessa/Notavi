@@ -1,13 +1,13 @@
 import type { Db, Stmt } from '../db/types';
 import { countWords, htmlToText, newId, sortKey, uniqueStrings } from '../lib/text';
-import type { Chapter, ChapterMeta, Novel, NovelInput, NovelSummary, ParsedNovel } from './model';
+import type { Chapter, ChapterMeta, NewChapter, Novel, NovelInput, NovelSummary, ParsedNovel, ReadingMode } from './model';
 
 /* ------------------------------------------------------------------ rows */
 
 type NovelRow = {
   id: string; title: string; alt_titles: string; author: string; translator: string; description: string;
   genres: string; tags: string; content_type: Novel['contentType']; source: string; licence_notes: string;
-  external_url: string; status: Novel['status']; publication_status: string; favourite: number; rating: number;
+  external_url: string; status: Novel['status']; publication_status: string; favourite: number; rating: number; reading_mode: Novel['readingMode'];
   personal_notes: string; cover_id: string | null; language: string; created_at: number; updated_at: number;
   content_updated_at: number; last_read_at: number | null;
 };
@@ -43,6 +43,7 @@ export function rowToNovel(r: NovelRow): Novel {
     publicationStatus: r.publication_status,
     favourite: !!r.favourite,
     rating: r.rating ?? 0,
+    readingMode: r.reading_mode ?? 'web',
     personalNotes: r.personal_notes,
     coverId: r.cover_id,
     language: r.language,
@@ -74,12 +75,18 @@ function rowToSummary(r: SummaryRow): NovelSummary {
   };
 }
 
+/** Chapters shown in the novel's current format: book-only front/back matter appears only when read as a book. */
+const VISIBLE = (c: string) => `(${c}.book_only = 0 OR n.reading_mode = 'book')`;
+
 const SUMMARY_SQL = `
 SELECT n.*,
-  (SELECT count(*) FROM chapters c WHERE c.novel_id = n.id) AS chapter_count,
-  (SELECT coalesce(sum(c.word_count), 0) FROM chapters c WHERE c.novel_id = n.id) AS total_words,
-  (SELECT count(*) FROM chapter_reads r WHERE r.novel_id = n.id AND r.completed_at IS NOT NULL) AS chapters_read,
-  p.chapter_id AS p_chapter_id, p.chapter_ratio AS p_ratio, pc.position AS p_position, pc.title AS p_title
+  (SELECT count(*) FROM chapters c WHERE c.novel_id = n.id AND ${VISIBLE('c')}) AS chapter_count,
+  (SELECT coalesce(sum(c.word_count), 0) FROM chapters c WHERE c.novel_id = n.id AND ${VISIBLE('c')}) AS total_words,
+  (SELECT count(*) FROM chapter_reads r JOIN chapters c ON c.id = r.chapter_id
+     WHERE r.novel_id = n.id AND r.completed_at IS NOT NULL AND ${VISIBLE('c')}) AS chapters_read,
+  p.chapter_id AS p_chapter_id, p.chapter_ratio AS p_ratio,
+  (SELECT count(*) FROM chapters c WHERE c.novel_id = n.id AND c.position < pc.position AND ${VISIBLE('c')}) AS p_position,
+  CASE WHEN n.reading_mode = 'book' AND pc.original_title != '' THEN pc.original_title ELSE pc.title END AS p_title
 FROM novels n
 LEFT JOIN progress p ON p.novel_id = n.id
 LEFT JOIN chapters pc ON pc.id = p.chapter_id`;
@@ -116,7 +123,7 @@ const FIELD_COLUMNS: Record<string, string> = {
   title: 'title', altTitles: 'alt_titles', author: 'author', translator: 'translator', description: 'description',
   genres: 'genres', tags: 'tags', contentType: 'content_type', source: 'source', licenceNotes: 'licence_notes',
   externalUrl: 'external_url', status: 'status', publicationStatus: 'publication_status', favourite: 'favourite',
-  personalNotes: 'personal_notes', language: 'language', rating: 'rating',
+  personalNotes: 'personal_notes', language: 'language', rating: 'rating', readingMode: 'reading_mode',
 };
 
 function columnValue(v: unknown) {
@@ -141,14 +148,15 @@ function novelFtsStmts(id: string): Stmt[] {
   ];
 }
 
-export function chapterInsertStmts(novelId: string, position: number, ch: { id?: string; title: string; content: string }, now: number) {
+export function chapterInsertStmts(novelId: string, position: number, ch: NewChapter & { id?: string }, now: number) {
   const id = ch.id ?? newId();
   const text = htmlToText(ch.content);
+  const original = ch.originalTitle && ch.originalTitle.trim() !== ch.title.trim() ? ch.originalTitle.trim() : '';
   const stmts: Stmt[] = [
     {
-      sql: `INSERT INTO chapters(id, novel_id, position, title, content, word_count, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      params: [id, novelId, position, ch.title, ch.content, countWords(text), now, now],
+      sql: `INSERT INTO chapters(id, novel_id, position, title, content, word_count, created_at, updated_at, book_only, original_title)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      params: [id, novelId, position, ch.title, ch.content, countWords(text), now, now, ch.bookOnly ? 1 : 0, original],
     },
     {
       sql: 'INSERT INTO chapter_fts(rowid, title, body) VALUES ((SELECT rid FROM chapters WHERE id = ?), ?, ?)',
@@ -160,7 +168,7 @@ export function chapterInsertStmts(novelId: string, position: number, ch: { id?:
 
 export interface CreateNovelOptions {
   cover?: { mime: string; data: Uint8Array } | null;
-  chapters?: { title: string; content: string }[];
+  chapters?: NewChapter[];
   images?: { id: string; mime: string; data: Uint8Array }[];
 }
 
@@ -174,14 +182,14 @@ export async function createNovel(db: Db, input: NovelInput, opts: CreateNovelOp
     {
       sql: `INSERT INTO novels(id, title, sort_title, alt_titles, author, translator, description, genres, tags,
               content_type, source, licence_notes, external_url, status, publication_status, favourite,
-              personal_notes, cover_id, language, created_at, updated_at, content_updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+              personal_notes, cover_id, language, created_at, updated_at, content_updated_at, reading_mode)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       params: [
         id, n.title, sortKey(n.title), JSON.stringify(n.altTitles ?? []), n.author ?? '', n.translator ?? '',
         n.description ?? '', JSON.stringify(n.genres ?? []), JSON.stringify(n.tags ?? []),
         n.contentType ?? 'personal_import', n.source ?? '', n.licenceNotes ?? '', n.externalUrl ?? '',
         n.status ?? 'want_to_read', n.publicationStatus ?? '', n.favourite ? 1 : 0, n.personalNotes ?? '',
-        coverId, n.language ?? '', now, now, now,
+        coverId, n.language ?? '', now, now, now, n.readingMode === 'book' ? 'book' : 'web',
       ],
     },
   ];
@@ -274,7 +282,7 @@ export async function getBlob(db: Db, id: string): Promise<{ mime: string; data:
 /* ------------------------------------------------------------------ chapters */
 
 type ChapterRow = {
-  id: string; novel_id: string; position: number; title: string; word_count: number;
+  id: string; novel_id: string; position: number; title: string; word_count: number; book_only: number; original_title: string;
   created_at: number; updated_at: number; content?: string; completed_at?: number | null; opened?: number | null;
 };
 
@@ -284,6 +292,8 @@ function rowToChapterMeta(r: ChapterRow): ChapterMeta {
     novelId: r.novel_id,
     position: r.position,
     title: r.title,
+    originalTitle: r.original_title || r.title,
+    bookOnly: !!r.book_only,
     wordCount: r.word_count,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -292,15 +302,29 @@ function rowToChapterMeta(r: ChapterRow): ChapterMeta {
   };
 }
 
-export async function listChapters(db: Db, novelId: string): Promise<ChapterMeta[]> {
+/**
+ * The novel's chapters in reading order. By default only those shown in its current format
+ * (web novel: book-only front/back matter left out); `all: true` for editing.
+ */
+export async function listChapters(db: Db, novelId: string, opts: { all?: boolean } = {}): Promise<ChapterMeta[]> {
   const rows = await db.all<ChapterRow>(
-    `SELECT c.id, c.novel_id, c.position, c.title, c.word_count, c.created_at, c.updated_at,
+    `SELECT c.id, c.novel_id, c.position, c.title, c.word_count, c.created_at, c.updated_at, c.book_only, c.original_title,
             r.completed_at, r.first_opened_at AS opened
-     FROM chapters c LEFT JOIN chapter_reads r ON r.chapter_id = c.id
-     WHERE c.novel_id = ? ORDER BY c.position`,
+     FROM chapters c JOIN novels n ON n.id = c.novel_id LEFT JOIN chapter_reads r ON r.chapter_id = c.id
+     WHERE c.novel_id = ? ${opts.all ? '' : `AND ${VISIBLE('c')}`} ORDER BY c.position`,
     [novelId],
   );
   return rows.map(rowToChapterMeta);
+}
+
+/** Move a section in or out of the web-novel chapter list. It always stays in the book. */
+export async function setChapterBookOnly(db: Db, id: string, bookOnly: boolean): Promise<void> {
+  await db.run('UPDATE chapters SET book_only = ? WHERE id = ?', [bookOnly ? 1 : 0, id]);
+}
+
+/** The title to show for a chapter in a given format. */
+export function displayTitle(c: Pick<ChapterMeta, 'title' | 'originalTitle'>, mode: ReadingMode): string {
+  return mode === 'book' ? c.originalTitle || c.title : c.title;
 }
 
 export async function getChapter(db: Db, id: string): Promise<Chapter | undefined> {
@@ -331,15 +355,18 @@ export async function addChapter(db: Db, novelId: string, ch: { title: string; c
   return id;
 }
 
-export async function updateChapter(db: Db, id: string, patch: { title?: string; content?: string }): Promise<void> {
+export async function updateChapter(db: Db, id: string, patch: { title?: string; originalTitle?: string; content?: string }): Promise<void> {
   const cur = await getChapter(db, id);
   if (!cur) throw new Error('Chapter not found.');
   const title = patch.title !== undefined ? patch.title.trim() || cur.title : cur.title;
+  const raw = await db.get<{ original_title: string }>('SELECT original_title FROM chapters WHERE id = ?', [id]);
+  let original = patch.originalTitle !== undefined ? patch.originalTitle.trim() : (raw?.original_title ?? '');
+  if (original === title) original = '';
   const content = patch.content ?? cur.content;
   const text = htmlToText(content);
   const now = Date.now();
   await db.batch([
-    { sql: 'UPDATE chapters SET title = ?, content = ?, word_count = ?, updated_at = ? WHERE id = ?', params: [title, content, countWords(text), now, id] },
+    { sql: 'UPDATE chapters SET title = ?, original_title = ?, content = ?, word_count = ?, updated_at = ? WHERE id = ?', params: [title, original, content, countWords(text), now, id] },
     { sql: 'DELETE FROM chapter_fts WHERE rowid = (SELECT rid FROM chapters WHERE id = ?)', params: [id] },
     { sql: 'INSERT INTO chapter_fts(rowid, title, body) VALUES ((SELECT rid FROM chapters WHERE id = ?), ?, ?)', params: [id, title, text] },
     touchContent(cur.novelId, now),
@@ -394,7 +421,7 @@ export async function allGenresAndTags(db: Db): Promise<{ genres: string[]; tags
 export async function appendChapters(
   db: Db,
   novelId: string,
-  chapters: { title: string; content: string }[],
+  chapters: NewChapter[],
   images: { id: string; mime: string; data: Uint8Array }[] = [],
 ): Promise<number> {
   if (!(await novelExists(db, novelId))) throw new Error('That novel is no longer in your library.');
@@ -407,7 +434,7 @@ export async function appendChapters(
   chapters.forEach((ch, i) => stmts.push(...chapterInsertStmts(novelId, count + i, ch, now).stmts));
   stmts.push(touchContent(novelId, now));
   await db.batch(stmts);
-  return chapters.length;
+  return chapters.filter((c) => !c.bookOnly).length;
 }
 
 export async function chapterTitles(db: Db, novelId: string): Promise<string[]> {

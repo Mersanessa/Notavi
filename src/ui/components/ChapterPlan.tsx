@@ -26,7 +26,7 @@ export function PlanSummary({ items, volumes }: { items: PlanItem[]; volumes: Vo
       </p>
       {audit.setAside.length > 0 && (
         <p className="muted">
-          Set aside: {audit.setAside.map((s) => s.title).join(', ')} ({formatNumber(audit.setAsideWords)} words). Open “Review chapters” to keep any of them.
+          Kept for the book format only: {audit.setAside.map((s) => s.title).join(', ')} ({formatNumber(audit.setAsideWords)} words). Read the novel as a book to see them, or open “Review chapters” to put any in the web-novel list.
         </p>
       )}
       {audit.ok ? (
@@ -102,7 +102,7 @@ export function PlanReviewDialog({
       <p className={audit.ok ? 'plan-summary__ok' : 'plan-summary__bad'}>
         {audit.ok ? <CircleCheck size={15} aria-hidden /> : <TriangleAlert size={15} aria-hidden />}
         {audit.ok
-          ? ` ${formatNumber(audit.keptWords)} words kept, ${formatNumber(audit.setAsideWords)} set aside. Nothing lost.`
+          ? ` ${formatNumber(audit.keptWords)} words in the web novel, ${formatNumber(audit.setAsideWords)} in the book format only. Nothing lost.`
           : ' Word check failed. This arrangement can’t be used.'}
       </p>
       <ol className="plan-list">
@@ -110,7 +110,7 @@ export function PlanReviewDialog({
           const idx = items.indexOf(it);
           return (
             <li key={it.id} className={`plan-row ${it.include ? '' : 'is-out'}`} data-testid="plan-row">
-              <input type="checkbox" checked={it.include} onChange={(e) => update(it.id, { include: e.target.checked })} aria-label={`Keep ${it.title}`} />
+              <input type="checkbox" checked={it.include} onChange={(e) => update(it.id, { include: e.target.checked })} aria-label={`Include ${it.title} in the web novel`} />
               <div className="plan-row__main">
                 <input
                   className="plan-row__title"

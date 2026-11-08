@@ -7,7 +7,7 @@
  * pages, text split across files) or set aside (copyright pages, contents),
  * but every word is accounted for, and `auditPlan` proves it.
  */
-import type { ParsedSection } from '../data/model';
+import type { NewChapter, ParsedSection } from '../data/model';
 import { countWords, htmlToText, newId } from '../lib/text';
 import { fragmentToHtml, cloneBetween } from './dom';
 
@@ -403,6 +403,14 @@ export function volumeNumber(label: string): number | null {
 }
 
 /** Items to store, in order: included ones only. Moved headings become titles, so content is stored as-is. */
-export function chaptersFromPlan(items: PlanItem[]): { title: string; content: string }[] {
-  return items.filter((it) => it.include).map((it) => ({ title: it.title.trim() || 'Untitled', content: it.content }));
+/**
+ * The chapters to store. Set-aside items are kept too, as book-only chapters, so the novel can still be read
+ * as the original book (title page, copyright, contents and all); the book's own titles are kept alongside.
+ */
+export function chaptersFromPlan(items: PlanItem[]): NewChapter[] {
+  return items.map((it) => {
+    const title = it.title.trim() || 'Untitled';
+    const original = (it.originalTitle || it.movedHeading || '').trim();
+    return { title, content: it.content, bookOnly: !it.include, originalTitle: original && original !== title ? original : undefined };
+  });
 }

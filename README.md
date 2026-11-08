@@ -19,6 +19,23 @@ your library lives on your device, and it leaves only when you export an encrypt
 Runs on **Windows** (installer), **Android** (APK, made for the Honor MagicPad 2) and **iPhone** (as a web app
 added to the Home Screen).
 
+### New in 1.2: read as a web novel or as a book
+
+Every novel has a **Read as** switch (on its page, and at the top of the reader's **Aa** settings):
+
+- **Web novel**: scrolling chapters with web-novel titles ("Chapter 12: …"), front and back matter out of the way.
+- **Book**: turn pages like Apple Books. Swipe (the page follows your finger), tap the left or right edge, or use
+  the arrow keys. The cover is the first page, then the title page, copyright and contents exactly as the ebook
+  has them, the book's own chapter titles, chapter openers with a drop cap, justified and hyphenated text, page
+  numbers and running heads, and two pages side by side when a tablet or computer is in landscape. Book format has
+  its own text settings (Literata by default), so your web-novel look is untouched.
+
+Switching is never destructive: nothing is deleted or rewritten. Your place, highlights, notes and bookmarks are
+the same in both formats, and you can switch back and forth as often as you like. When an ebook is imported in
+web-novel layout, the sections it sets aside (title page, copyright, contents…) are now **kept** for the book
+format instead of being dropped; any of them can be moved into the web-novel list from the chapter's ••• menu.
+Novels imported before 1.2 have already lost those sections, so re-import an ebook if you want them in Book format.
+
 ### New in 1.1
 
 - The Notavi wordmark, new app icons, and a short opening animation each time the app starts (tap to skip).
@@ -229,6 +246,8 @@ Signing lets you build release APKs and update the app without losing data. It's
 | Auto-scroll | Gauge in the bottom bar; hold the page to pause | A |
 | Highlight, note or bookmark text | Select text, then pick a colour, Note or Bookmark | — |
 | Leave (or close find, read aloud or auto-scroll first) | ← in the top bar | Esc |
+| **Book format:** turn the page | Swipe, or tap the left or right edge | ← / →, Space, Page Up/Down |
+| **Book format:** first or last page of the chapter | — | Home / End |
 
 Tap-to-turn and swipe can be switched off in reading settings.
 

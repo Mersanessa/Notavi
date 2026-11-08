@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { RotateCcw, X } from 'lucide-react';
+import { BookOpenText, RotateCcw, ScrollText, X } from 'lucide-react';
 import { useStore } from '../../app/store';
-import { DEFAULT_READER, READER_FONTS, READER_THEMES, type ReaderPrefs } from '../../app/prefs';
+import { DEFAULT_BOOK, DEFAULT_READER, READER_FONTS, READER_THEMES, TYPOGRAPHY_KEYS, type ReaderPrefs } from '../../app/prefs';
+import type { ReadingMode } from '../../data/model';
 import { IconButton, Button } from '../components/Button';
 import { Segmented, SelectField, Stepper, Switch } from '../components/Fields';
 import { listVoices, speechSupported, type VoiceInfo } from './speech';
@@ -15,10 +16,20 @@ function rankVoice(v: VoiceInfo) {
  * Typography and behaviour settings. Non-modal: the chapter stays visible
  * behind it so every change can be judged as it happens.
  */
-export function ReaderSettings({ onClose }: { onClose: () => void }) {
-  const r = useStore((s) => s.reader);
+export function ReaderSettings({ onClose, mode, onFormat }: { onClose: () => void; mode: ReadingMode; onFormat: (m: ReadingMode) => void }) {
+  const prefs = useStore((s) => s.reader);
   const set = useStore((s) => s.setReader);
-  const upd = (p: Partial<ReaderPrefs>) => void set(p);
+  const book = mode === 'book';
+  const bookT = { ...DEFAULT_BOOK, ...prefs.book };
+  // Each format keeps its own typography; everything else is shared.
+  const r = book ? { ...prefs, ...bookT } : prefs;
+  const upd = (p: Partial<ReaderPrefs> & { spreads?: boolean }) => {
+    if (!book) return void set(p);
+    const typo: Record<string, unknown> = {};
+    const rest: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(p)) ((TYPOGRAPHY_KEYS as readonly string[]).includes(k) || k === 'spreads' ? typo : rest)[k] = v;
+    void set({ ...(rest as Partial<ReaderPrefs>), ...(Object.keys(typo).length ? { book: { ...bookT, ...typo } } : {}) });
+  };
   const [voices, setVoices] = useState<VoiceInfo[]>([]);
   useEffect(() => {
     void listVoices().then((v) => setVoices([...v].sort((a, b) => rankVoice(a) - rankVoice(b) || a.name.localeCompare(b.name))));
@@ -31,6 +42,23 @@ export function ReaderSettings({ onClose }: { onClose: () => void }) {
         <IconButton icon={X} label="Close settings" onClick={onClose} size="sm" />
       </header>
       <div className="reader-panel__body">
+        <section className="rs-section">
+          <h3 className="rs-title">Read as</h3>
+          <div className="format-cards" role="radiogroup" aria-label="Read as">
+            <button type="button" role="radio" aria-checked={!book} className={`format-card ${!book ? 'is-on' : ''}`} onClick={() => !book || onFormat('web')} data-testid="format-web">
+              <ScrollText size={20} aria-hidden />
+              <span className="format-card__name">Web novel</span>
+              <span className="format-card__hint">Scroll through chapters</span>
+            </button>
+            <button type="button" role="radio" aria-checked={book} className={`format-card ${book ? 'is-on' : ''}`} onClick={() => book || onFormat('book')} data-testid="format-book">
+              <BookOpenText size={20} aria-hidden />
+              <span className="format-card__name">Book</span>
+              <span className="format-card__hint">Turn pages, as printed</span>
+            </button>
+          </div>
+          <p className="rs-note">{book ? 'Shows the book’s own chapter titles, its cover, and its front and back matter. Book format keeps its own text settings, so your web-novel look stays as it is.' : 'Switch any time; your place, highlights and notes stay the same in both.'}</p>
+        </section>
+
         <section className="rs-section">
           <h3 className="rs-title">Theme</h3>
           <div className="theme-swatches" role="radiogroup" aria-label="Theme">
@@ -105,16 +133,22 @@ export function ReaderSettings({ onClose }: { onClose: () => void }) {
 
         <section className="rs-section">
           <h3 className="rs-title">Behaviour</h3>
-          <Switch label="Tap edges to turn pages" hint="Tap the left or right quarter of the screen to move a screen up or down." checked={r.tapToTurn} onChange={(v) => upd({ tapToTurn: v })} />
-          <Switch label="Swipe sideways to change chapter" checked={r.swipeChapters} onChange={(v) => upd({ swipeChapters: v })} />
-          <Switch label="Smooth page scrolling" checked={r.smoothScroll} onChange={(v) => upd({ smoothScroll: v })} />
+          {book ? (
+            <Switch label="Two pages side by side" hint="In landscape on a tablet or computer, like an open book." checked={bookT.spreads} onChange={(v) => upd({ spreads: v })} />
+          ) : (
+            <>
+              <Switch label="Tap edges to turn pages" hint="Tap the left or right quarter of the screen to move a screen up or down." checked={r.tapToTurn} onChange={(v) => upd({ tapToTurn: v })} />
+              <Switch label="Swipe sideways to change chapter" checked={r.swipeChapters} onChange={(v) => upd({ swipeChapters: v })} />
+              <Switch label="Smooth page scrolling" checked={r.smoothScroll} onChange={(v) => upd({ smoothScroll: v })} />
+            </>
+          )}
           <Switch label="Keep the screen on" checked={r.keepAwake} onChange={(v) => upd({ keepAwake: v })} />
           <Switch label="Show progress line" checked={r.showStatus} onChange={(v) => upd({ showStatus: v })} />
           <Stepper label="Reading speed" value={r.wpm} min={100} max={600} step={10} format={(v) => `${v} wpm`} onChange={(v) => upd({ wpm: v })} />
         </section>
 
-        <Button variant="ghost" icon={RotateCcw} onClick={() => upd({ ...DEFAULT_READER, theme: r.theme, ttsVoice: r.ttsVoice, ttsRate: r.ttsRate, autoScrollSpeed: r.autoScrollSpeed, dim: r.dim, warmth: r.warmth, warmAtNight: r.warmAtNight })}>
-          Reset text and layout
+        <Button variant="ghost" icon={RotateCcw} onClick={() => (book ? void set({ book: DEFAULT_BOOK }) : upd({ ...DEFAULT_READER, theme: r.theme, ttsVoice: r.ttsVoice, ttsRate: r.ttsRate, autoScrollSpeed: r.autoScrollSpeed, dim: r.dim, warmth: r.warmth, warmAtNight: r.warmAtNight, book: prefs.book }))}>
+          {book ? 'Reset book text and layout' : 'Reset text and layout'}
         </Button>
       </div>
     </aside>
