@@ -14,7 +14,7 @@ Single source of truth for progress. If context resets, resume from here.
 | 6 | Search, annotations, progress | ✅ done |
 | 7 | Home, stats, personalisation | ✅ done |
 | 8 | Security, app lock, encrypted backup/restore | ✅ done |
-| 9 | Testing | ✅ 58 unit + 15 end-to-end tests passing (headless Chrome) |
+| 9 | Testing | ✅ 78 unit + 18 end-to-end tests passing (headless Chrome) |
 | 10 | Packaging: PWA, CI, README | ✅ done; CI green on GitHub (Windows installer, Android APK, PWA) |
 
 ## Stage 1 — Architecture & stack
@@ -108,6 +108,13 @@ focus; (3) EPUB chapters whose heading differed from the TOC label ("Stave One" 
 **Stage 10 — packaging.** `src-tauri/` compiles (`cargo check --release` passes on Linux with Tauri 2).
 `.github/workflows/build.yml`: tests → PWA artifacts (root + GitHub Pages builds, Pages deploy on every push to main once Pages is enabled) → Windows `.msi` + NSIS `.exe` → Android APK (signed release if secrets exist, else debug).
 Tags `v*` attach builds to a GitHub Release.
+
+**Web-novel layout (added after v1, at the user's request).** `src/import/layout.ts`: combines volumes into one
+continuously numbered chapter list; splits sections holding several chapters at chapter headings; joins opener pages
+and converter-split files; sets aside front/back matter (reversibly); optional "Chapter N: Name" titles; continues
+numbering when appending to an existing novel; bulk paste. **Guarantee:** chapter text passes through unchanged and
+`auditPlan` proves every source word is present, in order (kept or set aside); arrangements failing the check are not
+used. The EPUB importer no longer silently drops any section; it tags sections (front/back/toc) instead.
 
 ## Verification status
 

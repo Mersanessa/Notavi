@@ -200,6 +200,32 @@ describe('sanitising', () => {
   });
 });
 
+describe('web-novel layout of real ebook files', () => {
+  it('turns two published-style volumes into one numbered chapter list without losing a word', async () => {
+    const { planLayout, auditPlan, volumeNumber } = await import('../../src/import/layout');
+    const v1 = await parse('series/lantern-road-vol-1.epub');
+    const v2 = await parse('series/lantern-road-vol-2.epub');
+    expect(volumeNumber(v2.title)).toBe(2);
+    const vols = [v1, v2].map((p) => ({ label: p.title, sections: p.chapters }));
+    const plan = planLayout(vols, { webTitles: true, startNumber: 1 });
+    expect(plan.filter((p) => p.include).map((p) => p.title)).toEqual([
+      'Prologue',
+      'Chapter 1',
+      'Chapter 2: The Gate',
+      'Chapter 3',
+      'Chapter 4: Ember',
+      'Afterword',
+      'Chapter 5: New Dawn',
+      'Side Story: The Ferryman',
+      'Chapter 6: Old Debts',
+    ]);
+    expect(plan.filter((p) => !p.include).map((p) => p.originalTitle)).toEqual(['Title Page', 'Copyright', 'About the Author', 'Copyright']);
+    const audit = auditPlan(vols, plan);
+    expect(audit.ok).toBe(true);
+    expect(audit.sourceWords).toBeGreaterThan(1000);
+  });
+});
+
 describe('duplicate titles', () => {
   it('recognises the same title written differently', async () => {
     const { sameTitle } = await import('../../src/import/dom');
@@ -223,7 +249,7 @@ describe('splitting', () => {
 describe('storing imports', () => {
   it('stores every fixture and makes it searchable', async () => {
     const db = await MemoryDb.create();
-    const files = readdirSync(DIR).filter((f) => !f.startsWith('.') && f !== 'malformed' && f !== 'README.md');
+    const files = readdirSync(DIR).filter((f) => /\.(epub|txt|html|md)$/.test(f));
     for (const f of files) {
       const parsed = await parse(f);
       const id = await importParsed(db, parsed, { contentType: 'public_domain' });

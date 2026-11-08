@@ -115,6 +115,16 @@ export interface Annotation {
   novelTitle?: string;
 }
 
+/** A section of an imported file. `role` and `titleFrom` are hints for the web-novel layout step. */
+export interface ParsedSection {
+  title: string;
+  content: string;
+  /** From EPUB semantics (epub:type) or position: what the publisher says this section is. */
+  role?: 'front' | 'body' | 'back' | 'toc';
+  /** Where the title came from. 'generated' means the section had no heading or contents entry. */
+  titleFrom?: 'toc' | 'heading' | 'generated';
+}
+
 /** Output of an importer, before it's stored. */
 export interface ParsedNovel {
   format: 'epub' | 'txt' | 'html' | 'markdown';
@@ -130,7 +140,7 @@ export interface ParsedNovel {
   cover?: { mime: string; data: Uint8Array } | null;
   /** Images referenced from chapter HTML as `notavi-blob:<id>`. */
   images?: { id: string; mime: string; data: Uint8Array }[];
-  chapters: { title: string; content: string }[];
+  chapters: ParsedSection[];
   /** Non-fatal problems worth telling the user about. */
   warnings: string[];
 }

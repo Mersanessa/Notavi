@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import type { ParsedNovel } from '../data/model';
+import type { ParsedNovel, ParsedSection } from '../data/model';
 import { htmlToText, newId, uniqueStrings } from '../lib/text';
 import { hasContent, markAlignment, parseXhtml, sanitizeChapterHtml, splitAt, stripLeadingTitle } from './dom';
 import { ImportError, decodeText, fileStem } from './errors';
@@ -202,11 +202,11 @@ export async function parseEpub(bytes: Uint8Array, fileName: string): Promise<Pa
   }
 
   /* chapters */
-  const chapters: { title: string; content: string }[] = [];
+  const chapters: ParsedSection[] = [];
   let lenientCount = 0;
   let index = 0;
   for (const { item, linear } of spine) {
-    if (item.path === navPath && !tocByFile.has(item.path)) continue;
+    const isNavDoc = item.path === navPath && !tocByFile.has(item.path);
     const text = await readText(zip, item.path);
     if (text == null) {
       warnings.push(`A chapter file (${item.path.split('/').pop()}) is missing from the EPUB and was skipped.`);
@@ -249,14 +249,33 @@ export async function parseEpub(bytes: Uint8Array, fileName: string): Promise<Pa
       .filter((x): x is { e: TocEntry; el: HTMLElement } => !!x.el);
     const plainEntry = entries.find((e) => !e.frag);
 
+    // What the publisher marked this file as (EPUB 3 semantics, or common class/file names).
+    const semantics = [body.getAttribute('epub:type'), body.getAttributeNS('http://www.idpf.org/2007/ops', 'type'), body.firstElementChild?.getAttribute('epub:type'), body.getAttribute('class'), item.path.split('/').pop()]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    const role: ParsedSection['role'] = isNavDoc || /\btoc\b|contents/.test(semantics)
+      ? 'toc'
+      : /frontmatter|titlepage|halftitle|copyright|dedication|epigraph|imprint|cover/.test(semantics)
+        ? 'front'
+        : /backmatter|colophon|about-?the-?author|appendix-ads|promo/.test(semantics)
+          ? 'back'
+          : /bodymatter|chapter|part\b/.test(semantics)
+            ? 'body'
+            : !linear
+              ? 'front'
+              : undefined;
+
+    // Nothing is dropped here: every section with text is kept, and the layout step decides
+    // (visibly, and reversibly) what to set aside, e.g. copyright pages.
     const push = (title: string | undefined, html: string) => {
-      const heading = html.match(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/i)?.[1];
+      const heading = html.match(/^\s*(?:<(?:div|section|header|article)[^>]*>\s*)*<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/i)?.[1] ?? html.match(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/i)?.[1];
       const headingText = heading ? htmlToText(heading).replace(/\s+/g, ' ').trim() : '';
-      const t = title || (headingText && headingText.length < 120 ? headingText : '') || `Chapter ${index + 1}`;
+      const titleFrom: ParsedSection['titleFrom'] = title ? 'toc' : headingText && headingText.length < 120 ? 'heading' : 'generated';
+      const t = title || (titleFrom === 'heading' ? headingText : '') || `Section ${index + 1}`;
       const content = sanitizeChapterHtml(stripLeadingTitle(html, t));
-      if (!hasContent(content)) return;
-      if (!linear && !title && htmlToText(content).length < 400) return; // ancillary pages (title page, copyright)
-      chapters.push({ title: t, content });
+      if (!hasContent(content) && !(titleFrom !== 'generated' && role !== 'toc')) return; // empty page with no title
+      chapters.push({ title: t, content, role, titleFrom });
       index++;
     };
 

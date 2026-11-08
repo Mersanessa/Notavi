@@ -453,3 +453,78 @@ for (const vp of [
     else await expect(page.locator('.rail')).toBeVisible();
   });
 }
+
+/* ------------------------------------------------------------------ web-novel layout */
+
+test('combines ebook volumes into one web-novel chapter list', async ({ page }) => {
+  await page.goto('/#/import');
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByTestId('choose-files').click()]);
+  // Picked in the "wrong" order on purpose: volumes are sorted by number.
+  await chooser.setFiles(['fixtures/series/lantern-road-vol-2.epub', 'fixtures/series/lantern-road-vol-1.epub']);
+  await expect(page.locator('.import-item--ready')).toHaveCount(2);
+  await page.getByTestId('combine').click();
+  await expect(page.locator('.import-item--ready')).toHaveCount(1);
+  await expect(page.locator('.volume-order__name')).toHaveText(['The Lantern Road, Volume 1', 'The Lantern Road, Volume 2']);
+  await expect(page.getByTestId('audit-ok')).toContainText('words accounted for');
+  await expect(page.locator('.plan-summary')).toContainText('6 chapters');
+  await expect(page.locator('.plan-summary')).toContainText('Set aside: Title Page, Copyright, About the Author, Copyright');
+  await expect(page.locator('.import-item__fields input').first()).toHaveValue('The Lantern Road');
+
+  // Bring "About the Author" back and rename a chapter in the review.
+  await page.getByTestId('review-chapters').click();
+  await page.getByRole('checkbox', { name: 'Keep About the Author' }).check();
+  await page.getByRole('textbox', { name: 'Title for Chapter Three' }).fill('Chapter 3: Cinders');
+  await page.getByTestId('plan-apply').click();
+  await expect(page.locator('.plan-summary')).toContainText('Set aside: Title Page, Copyright, Copyright');
+
+  await page.getByTestId('import-one').click();
+  await page.getByRole('link', { name: /Open “The Lantern Road”/ }).click();
+  await page.getByRole('tab', { name: /Chapters/ }).click();
+  await expect(page.locator('.chapter-row__title')).toHaveText([
+    'Prologue',
+    'Chapter 1',
+    'Chapter 2: The Gate',
+    'Chapter 3: Cinders',
+    'Chapter 4: Ember',
+    'Afterword',
+    'About the Author',
+    'Chapter 5: New Dawn',
+    'Side Story: The Ferryman',
+    'Chapter 6: Old Debts',
+  ]);
+
+  // The opener page and the split file were re-joined into whole chapters.
+  await page.locator('.chapter-row__link', { hasText: 'Chapter 1' }).first().click();
+  await expect(page.locator('.chapter-head__title')).toHaveText('Chapter 1');
+  await expect(page.getByTestId('chapter-text').locator('p')).toHaveCount(10);
+});
+
+test('adds a later volume to the end of an existing novel, continuing the numbering', async ({ page }) => {
+  await importFiles(page, ['series/lantern-road-vol-1.epub']);
+  await page.goto('/#/import');
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByTestId('choose-files').click()]);
+  await chooser.setFiles(['fixtures/series/lantern-road-vol-2.epub']);
+  await page.getByTestId('import-target').selectOption({ label: 'The end of “The Lantern Road, Volume 1”' });
+  await expect(page.getByTestId('import-one')).toHaveText('Add 3 chapters');
+  await page.getByTestId('import-one').click();
+  await expect(page.getByText('Added 3 chapters.')).toBeVisible();
+  await openNovel(page, 'The Lantern Road, Volume 1');
+  await page.getByRole('tab', { name: /Chapters/ }).click();
+  await expect(page.locator('.chapter-row__title').last()).toHaveText('Chapter 6: Old Debts');
+  await expect(page.locator('.chapter-row__title').nth(6)).toHaveText('Chapter 5: New Dawn');
+});
+
+test('pastes several chapters at once and splits them at their headings', async ({ page }) => {
+  await page.goto('/#/new');
+  await page.getByLabel('Title', { exact: true }).fill('The Ferry');
+  await page.getByRole('button', { name: 'Add novel' }).click();
+  await page.getByRole('tab', { name: /Chapters/ }).click();
+  await page.getByRole('button', { name: 'Paste chapters' }).click();
+  const text = (await import('node:fs')).readFileSync('fixtures/series/pasted-chapters.txt', 'utf8');
+  await page.getByTestId('paste-text').fill(text);
+  await page.getByTestId('paste-next').click();
+  await expect(page.getByTestId('audit-ok')).toBeVisible();
+  await expect(page.getByTestId('paste-add')).toHaveText('Add 3 chapters');
+  await page.getByTestId('paste-add').click();
+  await expect(page.locator('.chapter-row__title')).toHaveText(['Chapter 7: The Ferry', 'Chapter 8: Low Tide', 'Chapter 9: The Lighthouse Keeper']);
+});

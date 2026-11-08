@@ -297,3 +297,15 @@ describe('erase', () => {
     expect((await N.getNovel(db, id))!.title).toBe('Gone');
   });
 });
+
+describe('appending chapters', () => {
+  it('adds chapters after the existing ones, with their images', async () => {
+    const id = await N.createNovel(db, { title: 'Growing' }, { chapters: chapters(2) });
+    const added = await N.appendChapters(db, id, [{ title: 'Chapter 3', content: '<p>Three <img src="notavi-blob:img-000001"></p>' }], [{ id: 'img-000001', mime: 'image/png', data: new Uint8Array([1]) }]);
+    expect(added).toBe(1);
+    expect(await N.chapterTitles(db, id)).toEqual(['Chapter 1', 'Chapter 2', 'Chapter 3']);
+    expect((await N.getBlob(db, 'img-000001'))!.mime).toBe('image/png');
+    expect((await S.searchText(db, 'Three', { novelId: id })).total).toBe(1);
+    await expect(N.appendChapters(db, 'missing', [])).rejects.toThrow(/no longer/);
+  });
+});

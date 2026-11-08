@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, BookOpen, Bookmark, CheckCheck, Copy, ExternalLink, FolderPlus, Heart, Highlighter, ImagePlus, ImageOff, ListChecks, MoreHorizontal,
-  NotebookPen, Pencil, Plus, RotateCcw, Search, StickyNote, Trash2, X, ArrowUpDown, Circle, CircleCheck,
+  NotebookPen, Pencil, Plus, RotateCcw, Search, StickyNote, Trash2, X, ArrowUpDown, Circle, CircleCheck, ClipboardPaste,
 } from 'lucide-react';
+import { PasteChaptersDialog } from './PasteChapters';
 import { db, mutate, toast, useStore } from '../../app/store';
 import { useAsync, useDocumentTitle } from '../../app/hooks';
 import { forgetBlob } from '../../app/blobs';
@@ -321,7 +322,11 @@ function ChaptersTab({ novel }: { novel: NovelSummary }) {
   const [q, setQ] = useState('');
   const [reorder, setReorder] = useState(false);
   const [hits, setHits] = useState<{ hits: TextHit[]; total: number } | null>(null);
+  const [pasting, setPasting] = useState(false);
   const list = chapters.data ?? [];
+  const pasteDialog = pasting && (
+    <PasteChaptersDialog novel={novel} existingTitles={list.map((c) => c.title)} onClose={() => setPasting(false)} onDone={() => chapters.reload()} />
+  );
   const wpm = useStore((s) => s.reader.wpm);
 
   useEffect(() => {
@@ -338,9 +343,25 @@ function ChaptersTab({ novel }: { novel: NovelSummary }) {
   if (chapters.loading && !chapters.data) return <Spinner />;
   if (!list.length)
     return (
-      <EmptyState icon={NotebookPen} title="No chapters yet" action={<Button variant="primary" icon={Plus} onClick={() => navigate(routes.newChapter(novel.id))}>Add a chapter</Button>}>
-        {novel.contentType === 'external_link' ? 'This novel is saved as a link. You can still add your own chapters.' : 'Write or paste chapters by hand.'}
-      </EmptyState>
+      <>
+        <EmptyState
+          icon={NotebookPen}
+          title="No chapters yet"
+          action={
+            <div className="button-row">
+              <Button variant="primary" icon={ClipboardPaste} onClick={() => setPasting(true)}>
+                Paste chapters
+              </Button>
+              <Button icon={Plus} onClick={() => navigate(routes.newChapter(novel.id))}>
+                Write a chapter
+              </Button>
+            </div>
+          }
+        >
+          {novel.contentType === 'external_link' ? 'This novel is saved as a link. You can still add chapters.' : 'Paste many chapters at once, or write one by hand.'}
+        </EmptyState>
+        {pasteDialog}
+      </>
     );
 
   const chapterMenu = (c: ChapterMeta): (MenuItem | 'divider')[] => [
@@ -391,6 +412,11 @@ function ChaptersTab({ novel }: { novel: NovelSummary }) {
           <Button size="sm" variant={reorder ? 'primary' : 'secondary'} icon={reorder ? ListChecks : ArrowUpDown} onClick={() => setReorder(!reorder)}>
             {reorder ? 'Done' : 'Reorder'}
           </Button>
+          {!reorder && (
+            <Button size="sm" icon={ClipboardPaste} onClick={() => setPasting(true)} data-testid="paste-chapters">
+              Paste chapters
+            </Button>
+          )}
           {!reorder && (
             <Button size="sm" icon={Plus} onClick={() => navigate(routes.newChapter(novel.id))}>
               Add
@@ -451,6 +477,7 @@ function ChaptersTab({ novel }: { novel: NovelSummary }) {
           })}
         </ol>
       )}
+      {pasteDialog}
     </div>
   );
 }

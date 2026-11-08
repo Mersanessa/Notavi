@@ -388,3 +388,27 @@ export async function allGenresAndTags(db: Db): Promise<{ genres: string[]; tags
   const t = await db.all<{ v: string }>('SELECT DISTINCT j.value AS v FROM novels, json_each(novels.tags) j ORDER BY j.value COLLATE NOCASE');
   return { genres: uniqueStrings(g.map((r) => r.v)), tags: uniqueStrings(t.map((r) => r.v)) };
 }
+
+/** Append chapters (and any images they reference) to the end of an existing novel, in one transaction. */
+export async function appendChapters(
+  db: Db,
+  novelId: string,
+  chapters: { title: string; content: string }[],
+  images: { id: string; mime: string; data: Uint8Array }[] = [],
+): Promise<number> {
+  if (!(await novelExists(db, novelId))) throw new Error('That novel is no longer in your library.');
+  const count = (await db.get<{ n: number }>('SELECT count(*) AS n FROM chapters WHERE novel_id = ?', [novelId]))!.n;
+  const now = Date.now();
+  const stmts: Stmt[] = images.map((img) => ({
+    sql: "INSERT OR IGNORE INTO blobs(id, novel_id, kind, mime, data, created_at) VALUES (?, ?, 'image', ?, ?, ?)",
+    params: [img.id, novelId, img.mime, img.data, now],
+  }));
+  chapters.forEach((ch, i) => stmts.push(...chapterInsertStmts(novelId, count + i, ch, now).stmts));
+  stmts.push(touchContent(novelId, now));
+  await db.batch(stmts);
+  return chapters.length;
+}
+
+export async function chapterTitles(db: Db, novelId: string): Promise<string[]> {
+  return (await db.all<{ title: string }>('SELECT title FROM chapters WHERE novel_id = ? ORDER BY position', [novelId])).map((r) => r.title);
+}

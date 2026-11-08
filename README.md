@@ -121,6 +121,32 @@ Set its **content type** (original, public domain, licensed, personal import) an
 Files that can't be used are explained (*“protected by DRM”*, *“is a PDF”*, *“isn't a valid EPUB”*) and nothing
 is imported from them.
 
+### Reading published volumes in web-novel form
+
+If you own a series as ebooks (or a mix of ebooks), Notavi can lay it out the way web novels are read: one flat,
+continuously numbered chapter list.
+
+1. **Import → Choose files** and pick every volume at once, then tap **Combine N files into one novel**. Volumes are
+   put in order by their number; reorder them if needed.
+2. Leave **Web-novel layout** on to retitle chapters “Chapter 1 … Chapter 412: Name”, numbered straight through every
+   volume. Turn it off to keep the book’s own titles.
+3. Notavi undoes the book structure automatically. It sets aside title pages, copyright, contents and
+   “About the Author”. It joins chapter-opener pages to their text, re-joins chapters that a converter split across
+   files, and splits files that contain several chapters. Prologues, side stories and afterwords are kept in place.
+4. **Review chapters** shows the whole list. Bring back anything set aside, rename chapters, or join a piece onto
+   the one before it.
+
+**Your text is never edited.** Every import is checked word for word: *“All 412,345 words accounted for. Chapter
+text is unchanged.”* If an arrangement ever failed that check, it wouldn’t be used and the file would be imported
+exactly as laid out.
+
+To **continue a series you already have**, import the next volume and set **Add to** to *The end of “…”*. Numbering
+carries on from the last chapter. To **paste chapters**, open the novel's **Chapters** tab and choose
+**Paste chapters**. Paste as many as you like; they're split at their headings and added at the end.
+
+One limit: if a published edition merged, split or rewrote the original web chapters, the web chapter breaks can't be
+recovered from the book. Notavi uses the chapter breaks the book itself has.
+
 Other ways to add things:
 - **Add by hand** creates a novel from scratch; then write or paste chapters (**Chapters → Add**).
 - **Web novels as links:** add by hand and choose content type **External link**. Only the address is saved.

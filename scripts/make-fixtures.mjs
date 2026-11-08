@@ -291,6 +291,62 @@ w('no-headings.txt', filler(61, 160).join('\n\n'));
 /* 9. Roman numeral headings */
 w('roman-numerals.txt', ['I.', 'II.', 'III.', 'IV.'].map((h, i) => `${h}\n\n${filler(70 + i, 4).join('\n\n')}`).join('\n\n\n'));
 
+/* 10. A two-volume series laid out like a published ebook (original filler text) */
+const S = join(OUT, 'series');
+mkdirSync(S, { recursive: true });
+const sec = (type, body) => xhtml('x', body).replace('<body>', `<body epub:type="${type}">`);
+async function volume(n, files, navList) {
+  return epub({
+    name: `lantern-${n}`,
+    meta: `<dc:title>The Lantern Road, Volume ${n}</dc:title><dc:creator>A. N. Author</dc:creator><dc:language>en</dc:language><dc:subject>Fantasy</dc:subject>`,
+    nav: 'nav.xhtml',
+    cover: 'cover.png',
+    files: {
+      'nav.xhtml': xhtml('Contents', `<nav epub:type="toc"><h1>Contents</h1><ol>${navList.map(([href, t]) => `<li><a href="${href}">${t}</a></li>`).join('')}</ol></nav>`),
+      'cover.png': coverPng,
+      'cover.xhtml': xhtml('Cover', '<div><img src="cover.png" alt="Cover"/></div>'),
+      ...files,
+    },
+    spine: ['cover.xhtml', ...Object.keys(files)],
+  });
+}
+w('series/lantern-road-vol-1.epub', await volume(
+  1,
+  {
+    'title.xhtml': sec('frontmatter titlepage', '<h1>The Lantern Road</h1><p>Volume One</p><p>A. N. Author</p>'),
+    'copyright.xhtml': sec('frontmatter copyright-page', '<p>Copyright © 2024 A. N. Author. All rights reserved. No part of this book may be reproduced.</p>'),
+    'prologue.xhtml': sec('bodymatter chapter', `<h1>Prologue</h1>${paras(filler(101, 6))}`),
+    'ch1-open.xhtml': sec('bodymatter chapter', '<h1>Chapter One</h1>'),
+    'ch1.xhtml': sec('bodymatter', paras(filler(102, 10))),
+    'ch2.xhtml': sec('bodymatter chapter', `<h1>Chapter Two: The Gate</h1>${paras(filler(103, 6))}`),
+    'ch2_split_001.xhtml': sec('bodymatter', paras(filler(104, 5))),
+    'ch3.xhtml': sec('bodymatter chapter', `<h1>Chapter Three</h1>${paras(filler(105, 6))}<h2>Chapter Four: Ember</h2>${paras(filler(106, 6))}`),
+    'afterword.xhtml': sec('backmatter afterword', `<h1>Afterword</h1>${paras(filler(107, 2))}`),
+    'about.xhtml': sec('backmatter', '<h1>About the Author</h1><p>A. N. Author lives by the sea with too many books.</p>'),
+  },
+  [['title.xhtml', 'Title Page'], ['copyright.xhtml', 'Copyright'], ['prologue.xhtml', 'Prologue'], ['ch1-open.xhtml', 'Chapter One'], ['ch2.xhtml', 'Chapter Two: The Gate'], ['ch3.xhtml', 'Chapter Three'], ['afterword.xhtml', 'Afterword'], ['about.xhtml', 'About the Author']],
+));
+w('series/lantern-road-vol-2.epub', await volume(
+  2,
+  {
+    'copyright.xhtml': sec('frontmatter copyright-page', '<p>Copyright © 2025 A. N. Author.</p>'),
+    'ch1.xhtml': sec('bodymatter chapter', `<h1>Chapter One: New Dawn</h1>${paras(filler(201, 8))}`),
+    'side.xhtml': sec('bodymatter chapter', `<h1>Side Story: The Ferryman</h1>${paras(filler(202, 4))}`),
+    'ch2.xhtml': sec('bodymatter chapter', `<h1>Chapter Two: Old Debts</h1>${paras(filler(203, 8))}`),
+  },
+  [['copyright.xhtml', 'Copyright'], ['ch1.xhtml', 'Chapter One: New Dawn'], ['side.xhtml', 'Side Story: The Ferryman'], ['ch2.xhtml', 'Chapter Two: Old Debts']],
+));
+
+/* 11. Several web-novel chapters as pasted text */
+w('series/pasted-chapters.txt', [
+  'Chapter 7: The Ferry',
+  filler(301, 3).join('\n\n'),
+  'Chapter 8: Low Tide',
+  filler(302, 3).join('\n\n'),
+  'Chapter 9: The Lighthouse Keeper',
+  filler(303, 3).join('\n\n'),
+].join('\n\n'));
+
 /* ---------------------------------------------------------------- malformed files */
 const M = join(OUT, 'malformed');
 mkdirSync(M, { recursive: true });
