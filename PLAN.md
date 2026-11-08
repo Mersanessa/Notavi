@@ -19,7 +19,7 @@ Single source of truth for progress. If context resets, resume from here.
 | 1.1 | Brand, motion, haptics, reader extras, goals | ✅ done |
 | 1.2 | Read as web novel or book (paginated, Apple Books-style), reversible | ✅ done |
 | 1.3 | Lore: spoiler-free encyclopaedia (graph + index), name cards in the reader, real reading speed | ✅ done |
-| 1.4 | Smarter Lore: automatic definitions, cleaner names, fairer importance, duplicate merging | ✅ done — 111 unit + 26 end-to-end tests passing |
+| 1.4 | Smarter Lore: automatic definitions, cleaner names, fairer importance, duplicate merging | ✅ done — 112 unit + 26 end-to-end tests passing |
 
 ## Version 1.4 — Smarter Lore
 

@@ -81,6 +81,19 @@ export interface LoreView {
 
 export function loreView(index: LoreIndex, overrides: LoreOverride[], upto: Upto, opts: { includeHidden?: boolean } = {}): LoreView {
   const ov = new Map(overrides.map((o) => [o.key, o]));
+  // Corrections saved against a name that a newer Lore build has folded into another entry ("Klein" into
+  // "Klein Moretti") follow it there, so your notes and fixes aren't lost when the extraction improves.
+  const liveKeys = new Set(index.entities.map((e) => e.key));
+  const current = (key: string) => (liveKeys.has(key) ? key : index.formMap[key] !== undefined ? index.entities[index.formMap[key]].key : key);
+  for (const o of overrides) {
+    const to = current(o.key);
+    const into = o.mergedInto ? current(o.mergedInto) : o.mergedInto;
+    if (to === o.key && into === o.mergedInto) continue;
+    ov.delete(o.key);
+    const moved = { ...o, key: to, mergedInto: into === to ? null : into };
+    const there = ov.get(to);
+    ov.set(to, there ? { ...moved, ...there, note: [there.note, o.note].filter(Boolean).join('\n\n') } : moved);
+  }
   // Your merges: follow chains, ignore cycles.
   const resolve = (key: string) => {
     let k = key;

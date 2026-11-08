@@ -85,3 +85,12 @@ describe('automatic definitions', () => {
     expect(possibleDuplicates(get(v, 'port halloway'), view)).toEqual([]);
   });
 });
+
+describe('corrections survive smarter rebuilds', () => {
+  it('moves a note saved on a name that is now part of another entry', () => {
+    const idx = build();
+    // "doran" was its own entry in an older build; now it's a form of "doran kett".
+    const v = loreView(idx, [{ key: 'doran', note: 'Knows more than he says.' }], { pos: ALL });
+    expect(get(v, 'doran kett').note).toBe('Knows more than he says.');
+  });
+});
