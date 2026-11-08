@@ -96,7 +96,7 @@ function ReadingDefaults() {
       <Stepper label="Text size" value={r.fontSize} min={12} max={40} step={1} format={(v) => `${v}px`} onChange={(v) => void set({ fontSize: v })} />
       <Stepper label="Line spacing" value={r.lineHeight} min={1.2} max={2.6} step={0.05} format={(v) => v.toFixed(2)} onChange={(v) => void set({ lineHeight: Number(v.toFixed(2)) })} />
       <div className="reading-sample" data-reader-theme={r.theme} style={{ fontFamily: READER_FONTS.find((f) => f.value === r.font)?.stack, fontSize: r.fontSize, lineHeight: r.lineHeight, fontWeight: r.fontWeight }}>
-        It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.
+        <span lang="la">Cogito, ergo sum.</span>
       </div>
       <Stepper
         label="Daily reading goal"
