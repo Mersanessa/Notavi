@@ -13,7 +13,7 @@
   position: fixed;
   inset: 0 auto 0 0;
   width: calc(var(--rail-w) + var(--safe-left));
-  padding: calc(var(--s-5) + var(--safe-top)) 0 var(--s-5) var(--safe-left);
+  padding: calc(var(--s-5) + var(--safe-top-clear)) 0 var(--s-5) var(--safe-left);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -172,11 +172,11 @@
 .page {
   max-width: var(--content-max);
   margin: 0 auto;
-  padding: calc(var(--s-8) + var(--safe-top)) clamp(var(--s-4), 4vw, var(--s-10)) var(--s-8);
+  padding: calc(var(--s-8) + var(--safe-top-clear)) clamp(var(--s-4), 4vw, var(--s-10)) var(--s-8);
 }
 @media (max-width: 760px) {
   .page {
-    padding-top: calc(var(--s-5) + var(--safe-top));
+    padding-top: calc(var(--s-5) + var(--safe-top-clear));
   }
 }
 

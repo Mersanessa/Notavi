@@ -3,7 +3,9 @@ import { ArrowLeft, Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, List, Ma
 import { db, mutate, refreshLibrary, toast, useStore } from '../../app/store';
 import { navigate, routes, useRoute } from '../../app/router';
 import { resolveBlobRefs } from '../../app/blobs';
-import { READER_FONTS } from '../../app/prefs';
+import { READER_FONTS, applyAppTheme, setThemeColour, type ReaderTheme } from '../../app/prefs';
+
+const THEME_BG: Record<ReaderTheme, string> = { night: '#141a1f', black: '#000000', sepia: '#f3e8d2', paper: '#f7f7f3' };
 import type { Annotation, Chapter, ChapterMeta, HighlightColor, NovelSummary } from '../../data/model';
 import { getChapter, getNovel, listChapters, updateNovel } from '../../data/novels';
 import { getProgress, logReading, markChapterCompleted, saveProgress } from '../../data/reading';
@@ -391,6 +393,12 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
   };
 
   /* ---------------------------------------------------------------- screen */
+
+  // Match the status bar (and iOS's blur under it) to the page, so a light page doesn't get a dark band over the title.
+  useEffect(() => {
+    setThemeColour(THEME_BG[prefs.theme]);
+  }, [prefs.theme]);
+  useEffect(() => () => applyAppTheme(useStore.getState().app.theme), []);
 
   useEffect(() => {
     if (prefs.keepAwake) void keepScreenOn(true);

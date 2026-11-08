@@ -112,7 +112,7 @@ ol {
   font-weight: 600;
 }
 .skip-link:focus {
-  top: calc(12px + var(--safe-top));
+  top: calc(12px + var(--safe-top-clear));
 }
 
 .muted {

@@ -126,6 +126,11 @@ export function resolveHomeOrder(saved: HomeSection[]): HomeSection[] {
 const THEME_KEY = 'notavi.theme';
 
 /** Theme is mirrored to localStorage so the right colours show before the database opens. */
+/** The browser/status-bar colour; iOS tints its top blur with it, so it must match what's on screen. */
+export function setThemeColour(colour: string) {
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', colour);
+}
+
 export function applyAppTheme(theme: AppTheme) {
   const resolved = theme === 'system' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : theme;
   document.documentElement.dataset.theme = resolved;

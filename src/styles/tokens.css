@@ -51,6 +51,8 @@
   --tabbar-h: 64px;
   --content-max: 1240px;
   --safe-top: env(safe-area-inset-top, 0px);
+  /* Room under the status bar for headers: iOS blurs and tints a band a little deeper than the safe area. */
+  --safe-top-clear: calc(var(--safe-top) * 1.32);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
