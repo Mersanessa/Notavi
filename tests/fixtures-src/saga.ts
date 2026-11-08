@@ -1,6 +1,6 @@
 /**
  * An original short story written for testing Lore (names, places, organisations and a late reveal).
- * Also written out as fixtures/lore-saga.txt by scripts/make-fixtures.mjs.
+ * Also kept as fixtures/lore-saga.txt (title, then each chapter title and its paragraphs, separated by blank lines) for the end-to-end tests.
  */
 export const SAGA: { title: string; paras: string[] }[] = [
   {
@@ -12,6 +12,8 @@ export const SAGA: { title: string; paras: string[] }[] = [
       '“You want a ship,” Orsk said. “Everyone wants a ship. Nobody wants the Ashen Sea.”',
       'Mira smiled. “I want both,” she replied, and Orsk laughed for the first time that week.',
       'Suddenly the bells of the Tidewatch Guild rang across Port Halloway, and every sailor on the pier fell silent.',
+      '“I’ll find a ship by spring,” Mira said. “I’m not leaving without one.”',
+      'Mira and Orsk walked back along the pier as the lamps came on.',
     ],
   },
   {
@@ -23,6 +25,8 @@ export const SAGA: { title: string; paras: string[] }[] = [
       'Mira asked what he meant, but Doran only shook his head and called for Orsk.',
       'Orsk came in smelling of rain. He and Doran argued in low voices while Mira studied the old charts on the wall.',
       'One chart showed an island she had never heard of: Greywater Isle, far out in the Ashen Sea.',
+      'Lanternkeepers were people who could hear the Ashen Sea breathing at night. The Guild had not trained a Lanternkeeper in thirty years.',
+      '“I’ve heard of them,” Mira said, and Orsk did not answer.',
     ],
   },
   {
@@ -34,6 +38,7 @@ export const SAGA: { title: string; paras: string[] }[] = [
       'Mira added the black ship to her map anyway. Orsk grumbled that she would draw her own grave if she could.',
       'At night Mira wrote to Doran Kett, though there was nowhere to post the letter.',
       'Greywater Isle rose out of the fog on the fifth morning, grey and silent and wrong.',
+      'Orsk, known as the Grey Captain in every port on the coast, had sailed past Greywater Isle once before. He would not say what he had seen.',
     ],
   },
   {
@@ -67,6 +72,16 @@ export const SAGA: { title: string; paras: string[] }[] = [
       'They sailed for Greywater Isle again, because there was nowhere else to go.',
       'The lamp in the lighthouse was burning when they arrived.',
       'Seraphine Vale was waiting at the top of the stairs.',
+    ],
+  },
+  {
+    title: 'Chapter 7: The Keeper',
+    paras: [
+      'Seraphine Vale was a Lanternkeeper, the last one the Guild had ever trained.',
+      'She took Mira to the top of the lighthouse and showed her the lamp.',
+      'Mira understood then why the maps had always felt alive.',
+      '“You are a Lanternkeeper too,” Seraphine said.',
+      'Orsk waited by the boat, as he always did.',
     ],
   },
 ];

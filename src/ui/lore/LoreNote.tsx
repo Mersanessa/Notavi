@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { BookOpen, Eye, EyeOff, Hash, Layers, MessageSquareQuote, Network, Pencil, Quote, StickyNote, Tag } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { BookOpen, Combine, Eye, EyeOff, Hash, Layers, MessageSquareQuote, Network, Pencil, Quote, StickyNote, Tag, X } from 'lucide-react';
 import { db, mutate } from '../../app/store';
 import { href, navigate, routes } from '../../app/router';
 import { chapterTitleMap, loreMentions, setLoreOverride, type LoreMention } from '../../data/lore';
 import { LORE_KINDS, type LoreKind } from '../../lore/extract';
 import { TIER_LABEL, type LoreEntry, type LoreView } from '../../lore/view';
+import { defineEntry, possibleDuplicates } from '../../lore/define';
 import { formatNumber } from '../../lib/text';
 import { Button } from '../components/Button';
 import { Dialog } from '../components/Dialog';
@@ -40,6 +41,101 @@ export function WikiLink({ entry, onOpen, weight }: { entry: LoreEntry; onOpen: 
   );
 }
 
+/** The automatic definition: the book's own description, then what you've seen so far. */
+export function Definition({ entry, view, beforePos, chapterLabel, compact }: { entry: LoreEntry; view: LoreView; beforePos: number; chapterLabel: (pos: number) => string; compact?: boolean }) {
+  const def = useMemo(() => defineEntry(entry, view, chapterLabel, beforePos), [entry, view, chapterLabel, beforePos]);
+  // The card already lists who it's seen with, so it keeps to standing, when, names and last seen.
+  const facts = compact ? def.facts.filter((f) => !/^(Most often|Usually around|Linked to|Where you|Includes|Often comes up|Most linked|Shares the)/.test(f)) : def.facts;
+  return (
+    <div className={`lore-def${compact ? ' lore-def--compact' : ''}`} data-testid="lore-definition">
+      {def.lead && (
+        <p className="lore-def__lead">
+          {def.lead}
+          {!compact && def.leadPos !== null && <span className="lore-def__src"> {chapterLabel(def.leadPos)}</span>}
+        </p>
+      )}
+      <p className="lore-def__facts">{facts.join(' ')}</p>
+    </div>
+  );
+}
+
+/** When it comes up, chapter by chapter, across what you've read. */
+export function Presence({ entry, chapters, chapterLabel }: { entry: LoreEntry; chapters: number; chapterLabel: (pos: number) => string }) {
+  const n = Math.max(chapters, (entry.presence[entry.presence.length - 1]?.[0] ?? 0) + 1);
+  if (n < 3) return null;
+  const buckets = Math.min(n, 60);
+  const per = n / buckets;
+  const vals = new Array<number>(buckets).fill(0);
+  for (const [pos, c] of entry.presence) vals[Math.min(buckets - 1, Math.floor(pos / per))] += c;
+  const max = Math.max(1, ...vals);
+  const w = 100 / buckets;
+  return (
+    <figure className="presence" style={{ '--kc': KIND_COLOUR[entry.kind] } as React.CSSProperties} aria-label={`Mentioned in ${entry.chapters} of ${n} chapters read`}>
+      <svg viewBox="0 0 100 24" preserveAspectRatio="none" role="img" aria-hidden>
+        <line x1="0" x2="100" y1="23.5" y2="23.5" className="presence__base" />
+        {vals.map((v, i) =>
+          v ? <rect key={i} x={i * w + w * 0.15} width={Math.max(0.6, w * 0.7)} y={24 - Math.max(2, (Math.sqrt(v) / Math.sqrt(max)) * 22)} height={Math.max(2, (Math.sqrt(v) / Math.sqrt(max)) * 22)} rx="0.4" /> : null,
+        )}
+      </svg>
+      <figcaption>
+        <span>{chapterLabel(0)}</span>
+        <span>{chapterLabel(n - 1)}</span>
+      </figcaption>
+    </figure>
+  );
+}
+
+const NOT_DUP = (novelId: string) => `notavi:lore-notdup:${novelId}`;
+function readNotDup(novelId: string): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(NOT_DUP(novelId)) ?? '[]') as string[];
+  } catch {
+    return [];
+  }
+}
+
+/** "Klein" and "Klein Moretti" are probably the same person: one tap to merge. */
+function Duplicates({ novelId, entry, view, onChanged }: { novelId: string; entry: LoreEntry; view: LoreView; onChanged: () => void }) {
+  const [dismissed, setDismissed] = useState(() => readNotDup(novelId));
+  const dups = possibleDuplicates(entry, view).filter((d) => !dismissed.includes([entry.key, d.key].sort().join('|')));
+  if (!dups.length) return null;
+  const merge = async (d: LoreEntry) => {
+    // Keep the fuller name and the one mentioned more.
+    const [from, into] = d.mentions > entry.mentions || d.name.length > entry.name.length ? [entry, d] : [d, entry];
+    await mutate((db) => setLoreOverride(db, novelId, from.key, { mergedInto: into.key }), `Merged ${from.name} into ${into.name}`);
+    onChanged();
+    if (from === entry) navigate(routes.lore(novelId, into.key), { replace: true });
+  };
+  const dismiss = (d: LoreEntry) => {
+    const next = [...dismissed, [entry.key, d.key].sort().join('|')];
+    setDismissed(next);
+    try {
+      localStorage.setItem(NOT_DUP(novelId), JSON.stringify(next));
+    } catch {
+      /* fine: it just asks again next time */
+    }
+  };
+  return (
+    <section className="dup-hint" data-testid="lore-duplicates">
+      {dups.map((d) => (
+        <div key={d.key} className="dup-hint__row">
+          <span>
+            Same {entry.kind === 'character' ? 'person' : 'thing'} as <strong>{d.name}</strong>?
+          </span>
+          <span className="dup-hint__actions">
+            <Button size="sm" icon={Combine} onClick={() => void merge(d)}>
+              Merge
+            </Button>
+            <button type="button" className="icon-btn icon-btn--sm" aria-label={`Not the same as ${d.name}`} onClick={() => dismiss(d)}>
+              <X size={15} aria-hidden />
+            </button>
+          </span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 /**
  * An entry as a note: properties, what the book has said, who it's seen with, every earlier mention,
  * and your own notes. Only from chapters you've read.
@@ -60,7 +156,7 @@ export function LoreNote({
   onChanged: () => void;
 }) {
   const titles = useChapterTitles(novelId);
-  const chapterLabel = (pos: number) => titles.get(pos)?.title ?? `Chapter ${pos + 1}`;
+  const chapterLabel = useCallback((pos: number) => titles.get(pos)?.title ?? `Chapter ${pos + 1}`, [titles]);
   const [mentions, setMentions] = useState<{ hits: LoreMention[]; total: number } | null>(null);
   const [more, setMore] = useState(0);
   const [editing, setEditing] = useState(false);
@@ -79,6 +175,7 @@ export function LoreNote({
   const parent = entry.parent ? view.byKey.get(entry.parent) : null;
   const children = entry.children.map((k) => view.byKey.get(k)!).filter(Boolean);
   const first = titles.get(entry.firstPos);
+  const readCount = beforePos >= Number.MAX_SAFE_INTEGER ? titles.size : beforePos + 1;
 
   return (
     <article className="lore-note" data-testid="lore-note">
@@ -88,7 +185,10 @@ export function LoreNote({
           <span className="tier-pill">{TIER_LABEL[entry.tier]}</span>
         </div>
         <h1 className="lore-note__title">{entry.name}</h1>
+        <Definition entry={entry} view={view} beforePos={beforePos} chapterLabel={chapterLabel} />
       </header>
+
+      <Duplicates novelId={novelId} entry={entry} view={view} onChanged={onChanged} />
 
       <dl className="props">
         <div>
@@ -113,12 +213,18 @@ export function LoreNote({
             {formatNumber(entry.mentions)} in {formatNumber(entry.chapters)} {entry.chapters === 1 ? 'chapter' : 'chapters'}
           </dd>
         </div>
-        {entry.forms.length > 1 && (
+        {(entry.forms.length > 1 || entry.aliases.length > 0) && (
           <div>
             <dt>
               <Tag size={14} aria-hidden /> Also called
             </dt>
-            <dd>{entry.forms.filter((f) => f !== entry.name).join(', ')}</dd>
+            <dd className="wikilinks">
+              {entry.forms.filter((f) => f !== entry.name).join(', ')}
+              {entry.aliases.map((a) => {
+                const other = a.key ? view.byKey.get(a.key) : null;
+                return other && other.key !== entry.key ? <WikiLink key={a.name} entry={other} onOpen={onOpen} /> : <span key={a.name}>{a.name}</span>;
+              })}
+            </dd>
           </div>
         )}
         {parent && (
@@ -145,15 +251,24 @@ export function LoreNote({
         )}
       </dl>
 
-      {entry.desc.length > 0 && (
+      {readCount >= 3 && (
         <section className="lore-note__section">
-          <h2>Described as</h2>
+          <h2>Through the book</h2>
+          <Presence entry={entry} chapters={readCount} chapterLabel={chapterLabel} />
+        </section>
+      )}
+
+      {entry.desc.length > 1 && (
+        <section className="lore-note__section">
+          <h2>In the book's words</h2>
           <ul className="desc-list">
             {entry.desc.map((d, i) => (
               <li key={i}>
                 <Quote size={13} aria-hidden className="desc-list__q" />
                 <span>
-                  {entry.name.split(' ')[0]}, {d.text.replace(/[.,;:]$/, '')}
+                  {entry.name.split(' ')[0]}
+                  {d.kind === 'def' ? ': ' : ', '}
+                  {d.text.replace(/[.,;:]$/, '')}
                 </span>
                 <span className="desc-list__src">{chapterLabel(d.pos)}</span>
               </li>

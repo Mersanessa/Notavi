@@ -1,11 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Waypoints, X } from 'lucide-react';
 import { db } from '../../app/store';
 import { loreMentions, type LoreMention } from '../../data/lore';
 import { TIER_LABEL, type LoreEntry, type LoreView } from '../../lore/view';
 import { formatNumber } from '../../lib/text';
 import { IconButton, Button } from '../components/Button';
-import { KindPill, WikiLink, useChapterTitles } from './LoreNote';
+import { Definition, KindPill, WikiLink, useChapterTitles } from './LoreNote';
 
 /**
  * The spoiler-free card shown when you tap a name while reading: what the book has told you about it
@@ -66,7 +66,7 @@ export function LoreCard({
   }, [novelId, forms.join('|'), beforePos]);
 
   const related = entry ? entry.related.slice(0, 6).map((r) => view?.byKey.get(r.key)).filter((e): e is LoreEntry => !!e) : [];
-  const first = entry ? titles.get(entry.firstPos)?.title : null;
+  const chapterLabel = useCallback((p: number) => titles.get(p)?.title ?? `Chapter ${p + 1}`, [titles]);
 
   return (
     <div ref={ref} className={`lore-card ${hover ? 'is-hover' : ''}`} style={pos} role="dialog" aria-label={`About ${entry?.name ?? name}`} data-notap data-testid="lore-card" onPointerDown={(e) => e.stopPropagation()}>
@@ -78,7 +78,6 @@ export function LoreCard({
             {entry ? (
               <>
                 {TIER_LABEL[entry.tier]} · {formatNumber(entry.mentions)} {entry.mentions === 1 ? 'mention' : 'mentions'} so far
-                {first ? ` · first in ${first}` : ''}
               </>
             ) : mentions && mentions.total ? (
               `Came up in ${formatNumber(mentions.total)} earlier ${mentions.total === 1 ? 'chapter' : 'chapters'}`
@@ -90,16 +89,9 @@ export function LoreCard({
         <IconButton icon={X} size="sm" label="Close" onClick={onClose} />
       </div>
 
-      {entry && entry.desc.length > 0 && (
+      {entry && view && (
         <div className="lore-card__sec">
-          <h3>What you know</h3>
-          <ul className="lore-card__desc">
-            {entry.desc.slice(0, 3).map((d, i) => (
-              <li key={i}>
-                {entry.name.split(' ')[0]}, {d.text.replace(/[.,;:]$/, '')}.
-              </li>
-            ))}
-          </ul>
+          <Definition entry={entry} view={view} beforePos={beforePos} chapterLabel={chapterLabel} compact />
         </div>
       )}
 

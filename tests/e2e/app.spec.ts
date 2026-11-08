@@ -801,7 +801,8 @@ test('Lore: a spoiler-free encyclopaedia built from what you have read', async (
   const card = page.getByTestId('lore-card');
   await expect(card).toBeVisible();
   await expect(card).toContainText('Orsk');
-  await expect(card).toContainText('a broad man with a lantern');
+  await expect(card).toContainText(/a broad man with a lantern/i);
+  await expect(card.getByTestId('lore-definition')).toContainText('First appears in Chapter 1');
   await expect(card).toContainText('Previously');
   await expect(card).not.toContainText('Seraphine');
   await page.keyboard.press('Escape');
@@ -820,7 +821,8 @@ test('Lore: a spoiler-free encyclopaedia built from what you have read', async (
   expect(names).not.toContain('Seraphine Vale'); // only appears later
   await items.filter({ hasText: 'Doran Kett' }).click();
   const note = page.getByTestId('lore-note');
-  await expect(note).toContainText('the master of the Tidewatch Guild');
+  await expect(note.getByTestId('lore-definition')).toContainText('The master of the Tidewatch Guild.');
+  await expect(note).toContainText('Most often alongside');
   await expect(note).toContainText('Chapter 2: The Guild');
   await page.getByTestId('lore-note-box').fill('Knows more than he says.');
   await expect(note).toContainText('Saved');

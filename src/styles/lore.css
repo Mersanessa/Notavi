@@ -829,3 +829,113 @@
     max-width: none;
   }
 }
+
+/* ---------------------------------------------------------------- automatic definitions (1.4) */
+.lore-def {
+  display: grid;
+  gap: 6px;
+  margin-top: var(--s-3);
+  max-width: 62ch;
+}
+.lore-def__lead {
+  font-family: var(--font-display);
+  font-size: var(--t-lg);
+  line-height: 1.45;
+  color: var(--text);
+}
+.lore-def__src {
+  font-family: var(--font-ui);
+  font-size: var(--t-xs);
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.lore-def__facts {
+  font-size: var(--t-md);
+  line-height: 1.6;
+  color: var(--text-2);
+}
+.lore-def--compact {
+  margin-top: 0;
+  gap: 4px;
+}
+.lore-def--compact .lore-def__lead {
+  font-size: var(--t-md);
+  color: var(--r-text, var(--text));
+}
+.lore-def--compact .lore-def__facts {
+  font-size: var(--t-sm);
+  line-height: 1.5;
+  color: var(--r-muted, var(--text-2));
+}
+
+.presence {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+.presence svg {
+  width: 100%;
+  height: 44px;
+  display: block;
+}
+.presence rect {
+  fill: var(--kc, var(--brass));
+  opacity: 0.85;
+}
+.presence__base {
+  stroke: var(--rule);
+  stroke-width: 0.5;
+  vector-effect: non-scaling-stroke;
+}
+.presence figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  font-size: var(--t-xs);
+  color: var(--text-3);
+}
+.presence figcaption span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 48%;
+}
+
+.dup-hint {
+  display: grid;
+  gap: 6px;
+}
+.dup-hint__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 8px 8px 8px 14px;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--brass) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brass) 22%, transparent);
+  font-size: var(--t-sm);
+}
+.dup-hint__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* On phones the description gets its own line, two lines at most, instead of being cut to a few words. */
+@media (max-width: 759px) {
+  .lore-item {
+    grid-template-columns: 1fr auto;
+    row-gap: 2px;
+  }
+  .lore-item__desc {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.4;
+  }
+}

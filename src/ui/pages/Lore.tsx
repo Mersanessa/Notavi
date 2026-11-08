@@ -6,6 +6,7 @@ import { href, navigate, routes, useRoute } from '../../app/router';
 import type { NovelSummary } from '../../data/model';
 import { LORE_KINDS, type LoreKind } from '../../lore/extract';
 import { TIER_LABEL, type LoreEntry, type LoreTier, type LoreView } from '../../lore/view';
+import { lead } from '../../lore/define';
 import { formatNumber } from '../../lib/text';
 import { Button, IconButton } from '../components/Button';
 import { Cover } from '../components/Cover';
@@ -87,7 +88,7 @@ function LoreBook({ novel, entityKey }: { novel: NovelSummary; entityKey: string
   };
   const [q, setQ] = useState('');
   const [kinds, setKinds] = useState<Set<LoreKind>>(new Set(LORE_KINDS.map((k) => k.value)));
-  const [detail, setDetail] = useState<'key' | 'more' | 'all'>('more');
+  const [detail, setDetail] = useState<'key' | 'more' | 'all'>(() => (typeof window !== 'undefined' && window.innerWidth < 760 ? 'key' : 'more'));
   const [focus, setFocus] = useState<{ key: string; n: number } | null>(null);
   const category = (query.get('kind') as LoreKind | null) ?? null;
   const view = lore.view;
@@ -325,7 +326,7 @@ function IndexItem({ e, all, onOpen, nested, depth = 0 }: { e: LoreEntry; all: L
     <li>
       <button type="button" className="lore-item" onClick={() => onOpen(e.key)} data-testid="lore-item">
         <span className="lore-item__name">{e.name}</span>
-        {e.desc[0] && <span className="lore-item__desc">{e.desc[0].text.replace(/[.,;:]$/, '')}</span>}
+        {e.desc.length > 0 && <span className="lore-item__desc">{lead(e)?.text.replace(/[.]$/, '')}</span>}
         <span className="lore-item__n">{formatNumber(e.mentions)}</span>
       </button>
       {kids.length > 0 && (

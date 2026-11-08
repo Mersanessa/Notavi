@@ -19,6 +19,26 @@ your library lives on your device, and it leaves only when you export an encrypt
 Runs on **Windows** (installer), **Android** (APK, made for the Honor MagicPad 2) and **iPhone** (as a web app
 added to the Home Screen).
 
+### New in 1.4: a smarter Lore
+
+- **Definitions write themselves.** Every entry opens with a short definition: the book's own description where it
+  gives one ("A cartographer from the inland hills.", "People who could hear the Ashen Sea breathing at night."),
+  then what you've seen so far: how central it is, when it first came up, who and where it's usually with, the
+  group it's tied to, other names it goes by ("also known as the Grey Captain"), and when it last came up if it's
+  been a while. Still spoiler-free: written only from chapters you've read. Your own notes are optional.
+- **Cleaner names.** Contractions (I'll, I'm, I've), dialogue openers and two names joined by "and" are no longer
+  picked up. Plurals and short forms fold into one entry (Lanternkeepers → Lanternkeeper, the Guild → the Tidewatch
+  Guild), first names into full names, and titles are learned ("usually called Captain Orsk").
+- **Fairer importance.** Ranking now weighs how many chapters someone spans, how they're spread through the book,
+  who they share scenes with (a PageRank over the connections) and how often they act or speak, not just raw
+  mentions. Tiers are set within each kind, so a central character isn't "minor" for being named less often than
+  the hero, and a key place isn't buried under characters.
+- **Possible duplicates.** If two entries look like the same person ("Klein" and "Klein Moretti"), the entry asks;
+  one tap merges them, and "not the same" stops it asking.
+- **Through the book**: a small chart of where an entry comes up across the chapters you've read.
+- **Tidier graph**: labels never overlap (the most important win; the rest appear as you zoom), big books get a
+  sparser web of connections, and phones start on the Key detail level.
+
 ### New in 1.3: Lore, a spoiler-free encyclopaedia
 
 **Lore** (in the main menu, where Stats used to be) keeps track of the people, places, organisations and terms in

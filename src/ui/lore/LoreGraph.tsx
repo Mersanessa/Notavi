@@ -67,12 +67,15 @@ export function LoreGraph({
     });
     const seen = new Set<string>();
     const links: Link[] = [];
+    // Big books get a sparser web: each node keeps its strongest few ties, extra ones only when they're strong.
+    const big = entries.length > 150;
+    const keep = big ? 3 : 6;
     for (const e of entries) {
       e.related
         .filter((r) => keys.has(r.key))
-        .slice(0, 6)
+        .slice(0, keep)
         .forEach((r, i) => {
-          if (i >= 3 && r.weight < 3) return;
+          if (big ? i >= 2 && r.weight < 5 : i >= 3 && r.weight < 3) return;
           const id = e.key < r.key ? `${e.key}|${r.key}` : `${r.key}|${e.key}`;
           if (seen.has(id)) return;
           seen.add(id);
@@ -195,12 +198,13 @@ export function LoreGraph({
       const lit = (key: string) => !near || key === focusKey || near.has(key);
 
       // Links
+      const baseAlpha = links.length > 400 ? 0.16 : links.length > 150 ? 0.24 : 0.32;
       ctx.lineWidth = 0.8;
       for (const l of links) {
         const sN = l.source as Node;
         const tN = l.target as Node;
         const on = near && (sN.key === focusKey || tN.key === focusKey);
-        ctx.strokeStyle = on ? 'rgba(168, 130, 255, 0.85)' : near ? 'rgba(120,120,130,0.08)' : 'rgba(130,130,140,0.32)';
+        ctx.strokeStyle = on ? 'rgba(168, 130, 255, 0.85)' : near ? 'rgba(120,120,130,0.06)' : `rgba(130,130,140,${baseAlpha})`;
         ctx.lineWidth = on ? 1.4 : 0.8;
         ctx.beginPath();
         ctx.moveTo(sN.x! * k + tx, sN.y! * k + ty);
@@ -234,20 +238,33 @@ export function LoreGraph({
         }
       }
       // Labels: big nodes always, the rest as you zoom in, and the neighbourhood of what you're looking at.
+      // Most important first, and never on top of each other: a label that would overlap one already
+      // drawn waits until you zoom in far enough for it to have room.
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      for (const n of nodes) {
+      const placed: [number, number, number, number][] = [];
+      const order = focusKey && byKey.has(focusKey) ? [byKey.get(focusKey)!, ...nodes.filter((n) => n.key !== focusKey)] : nodes;
+      let drawn = 0;
+      for (const n of order) {
+        if (drawn > 140) break;
         const r = n.r * Math.sqrt(k);
-        const show = (near ? lit(n.key) : true) && (n.key === focusKey || (near && near.has(n.key)) || r * k > 9 || r > 9);
+        const isFocus = n.key === focusKey;
+        const show = (near ? lit(n.key) : true) && (isFocus || (near && near.has(n.key)) || r * k > 9 || r > 9);
         if (!show) continue;
         const x = n.x! * k + tx;
         const y = n.y! * k + ty;
         if (x < -80 || y < -40 || x > W + 80 || y > H + 40) continue;
+        ctx.font = `${isFocus ? 600 : 500} ${isFocus ? 13 : 11.5}px 'Hanken Grotesk Variable', system-ui, sans-serif`;
+        const tw = ctx.measureText(n.name).width;
+        const ly = y + Math.max(1.6, r) + 4;
+        const box: [number, number, number, number] = [x - tw / 2 - 3, ly - 1, x + tw / 2 + 3, ly + 15];
+        if (!isFocus && placed.some((b) => b[0] < box[2] && box[0] < b[2] && b[1] < box[3] && box[1] < b[3])) continue;
+        placed.push(box);
+        drawn++;
         const fade = near ? 1 : Math.min(1, (r * k - 6) / 6 + (r > 9 ? 1 : 0));
         ctx.globalAlpha = Math.max(0.35, fade);
-        ctx.font = `${n.key === focusKey ? 600 : 500} ${n.key === focusKey ? 13 : 11.5}px 'Hanken Grotesk Variable', system-ui, sans-serif`;
-        ctx.fillStyle = n.key === focusKey ? '#ffffff' : '#c9c9d1';
-        ctx.fillText(n.name, x, y + Math.max(1.6, r) + 4);
+        ctx.fillStyle = isFocus ? '#ffffff' : '#c9c9d1';
+        ctx.fillText(n.name, x, ly);
       }
       ctx.globalAlpha = 1;
     };

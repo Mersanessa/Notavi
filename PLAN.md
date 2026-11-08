@@ -18,7 +18,36 @@ Single source of truth for progress. If context resets, resume from here.
 | 10 | Packaging: PWA, CI, README | ✅ done; CI green on GitHub (Windows installer, Android APK, PWA) |
 | 1.1 | Brand, motion, haptics, reader extras, goals | ✅ done |
 | 1.2 | Read as web novel or book (paginated, Apple Books-style), reversible | ✅ done |
-| 1.3 | Lore: spoiler-free encyclopaedia (graph + index), name cards in the reader, real reading speed | ✅ done — 102 unit + 26 end-to-end tests passing |
+| 1.3 | Lore: spoiler-free encyclopaedia (graph + index), name cards in the reader, real reading speed | ✅ done |
+| 1.4 | Smarter Lore: automatic definitions, cleaner names, fairer importance, duplicate merging | ✅ done — 111 unit + 26 end-to-end tests passing |
+
+## Version 1.4 — Smarter Lore
+
+Asked for: stop contractions ("I'll", "I'm", "I've") showing up as major characters; stop calling characters minor
+just because they're mentioned less; definitions that appear without the reader writing them; generally smarter.
+
+- **Extraction** (`src/lore/extract.ts`, `LORE_VERSION` 2, so every novel's Lore rebuilds once): contractions and
+  words after opening quotes/colons/dashes are treated as sentence starts; "and" no longer joins names (only inside
+  "X of Y and Z"); a word counts as proper only if capitalised mid-sentence ≥ 2.5× as often as lower-case; plurals
+  group with singulars; a lone first/last name groups with the full name when one full name clearly dominates;
+  "the Guild" groups with "the Tidewatch Guild". Learns pronouns (he/she after the name), honorifics ("Captain"),
+  action cues ("said X", "X nodded"), "known as/called" aliases, and three kinds of description: appositive
+  ("X, a …"), definitional ("X is/was/were a …", including plural subjects) and relative ("X, who …"). Records
+  whether the book writes "the" before a name.
+- **Importance** (`src/lore/view.ts` `scoreEntries`): 0.26 mentions + 0.16 chapters + 0.16 spread across the book +
+  0.24 √PageRank over co-occurrence + 0.10 degree + 0.08 action, each log-normalised; tiers assigned within each kind
+  (major = top max(3, 7%) above 45% of the kind's top and in ≥ 2 chapters; recurring next 20%; minor ≥ 2 chapters
+  or ≥ 4 mentions; else passing). All computed from the chapters read only.
+- **Definitions** (`src/lore/define.ts`): lead = the book's best description (definitions first for terms and
+  places, appositives first for people); facts = standing so far, first appearance and chapter count, most frequent
+  companions/places/groups, shared surname, aliases, "last came up N chapters ago" (≥ 3). Shown at the top of each
+  note and, shortened, in the reader's name card; the index shows the lead under each name.
+- **UI**: duplicate suggestions with one-tap merge (merges the shorter/less-mentioned into the other) and a
+  dismissal remembered per novel; "Through the book" presence chart; "Also called" lists aliases as links; graph
+  label collision avoidance (greedy, most important first, ≤ 140 labels), sparser links and fainter lines for big
+  graphs, phones default to Key detail; index descriptions wrap on phones.
+- Tests: `tests/unit/lore-smarter.test.ts` (contractions, "and", plurals, pronouns, aliases, per-kind tiers,
+  definitions, spoiler gating, duplicates); the end-to-end Lore test checks the definition in the card and note.
 
 ## Version 1.3 — Lore (spoiler-free encyclopaedia), real reading speed
 
