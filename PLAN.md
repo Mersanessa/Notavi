@@ -46,6 +46,10 @@ just because they're mentioned less; definitions that appear without the reader 
   dismissal remembered per novel; "Through the book" presence chart; "Also called" lists aliases as links; graph
   label collision avoidance (greedy, most important first, ≤ 140 labels), sparser links and fainter lines for big
   graphs, phones default to Key detail; index descriptions wrap on phones.
+- **1.4.1 — Peek** (`src/ui/lore/Peek.tsx`): earlier mentions and "First seen" used to open the real reader, which
+  saved that chapter as your reading position. They now open a read-only overlay (own chapter load via
+  `getChapterAt`, reader theme and typography, matches marked with `findMatches`, step between mentions and between
+  the listed chapters) that writes nothing. E2E checks Continue reading still points at the chapter being read.
 - Tests: `tests/unit/lore-smarter.test.ts` (contractions, "and", plurals, pronouns, aliases, per-kind tiers,
   definitions, spoiler gating, duplicates); the end-to-end Lore test checks the definition in the card and note.
 

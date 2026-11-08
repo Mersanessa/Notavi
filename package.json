@@ -1,7 +1,7 @@
 {
   "name": "notavi",
   "private": true,
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "A private, local-first novel library and reader.",
   "type": "module",
   "scripts": {

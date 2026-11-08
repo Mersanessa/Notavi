@@ -829,6 +829,18 @@ test('Lore: a spoiler-free encyclopaedia built from what you have read', async (
   await page.reload();
   await expect(page.getByTestId('lore-note-box')).toHaveValue('Knows more than he says.');
 
+  // Looking back at an earlier mention opens a peek that doesn't move your place.
+  await page.getByTestId('lore-mention').first().click();
+  const peek = page.getByTestId('peek');
+  await expect(peek).toBeVisible();
+  await expect(peek).toContainText('Chapter 2: The Guild');
+  await expect(peek.locator('mark.find.is-current')).toContainText('Doran');
+  await page.getByTestId('peek-close').click();
+  await expect(peek).toHaveCount(0);
+  await page.goto('/#/');
+  await expect(page.getByTestId('continue-lead')).toContainText('Chapter 3: Greywater');
+  await page.goBack();
+
   // Graph view (the default) draws the map.
   await page.getByRole('radio', { name: 'Graph' }).click();
   await expect(page.getByTestId('lore-graph')).toBeVisible();

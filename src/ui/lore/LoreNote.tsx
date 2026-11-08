@@ -11,6 +11,7 @@ import { Button } from '../components/Button';
 import { Dialog } from '../components/Dialog';
 import { SelectField, Switch, TextField } from '../components/Fields';
 import { KIND_COLOUR, KIND_ICON, KIND_LABEL } from './kinds';
+import { Peek, type PeekStop } from './Peek';
 
 /** Chapter titles by position, loaded once per novel. */
 export function useChapterTitles(novelId: string) {
@@ -160,6 +161,7 @@ export function LoreNote({
   const [mentions, setMentions] = useState<{ hits: LoreMention[]; total: number } | null>(null);
   const [more, setMore] = useState(0);
   const [editing, setEditing] = useState(false);
+  const [peek, setPeek] = useState<{ stops: PeekStop[]; start: number } | null>(null);
   const formsKey = entry.forms.join('|');
 
   useEffect(() => {
@@ -203,7 +205,19 @@ export function LoreNote({
           <dt>
             <BookOpen size={14} aria-hidden /> First seen
           </dt>
-          <dd>{first ? <a className="link" href={href(routes.read(novelId, first.id))}>{first.title}</a> : chapterLabel(entry.firstPos)}</dd>
+          <dd>
+            {first && entry.firstPos < beforePos ? (
+              <button type="button" className="link" onClick={() => setPeek({ stops: [{ position: entry.firstPos, title: first.title }], start: 0 })} data-testid="lore-first-seen">
+                {first.title}
+              </button>
+            ) : first ? (
+              <a className="link" href={href(routes.read(novelId, first.id))}>
+                {first.title}
+              </a>
+            ) : (
+              chapterLabel(entry.firstPos)
+            )}
+          </dd>
         </div>
         <div>
           <dt>
@@ -301,12 +315,17 @@ export function LoreNote({
           <p className="muted">Nothing in earlier chapters: it first comes up in the chapter you're reading.</p>
         ) : (
           <ol className="mention-list">
-            {mentions.hits.map((m) => (
+            {mentions.hits.map((m, i) => (
               <li key={m.chapterId}>
-                <a className="mention" href={href(routes.read(novelId, m.chapterId, `find=${encodeURIComponent(entry.forms[entry.forms.length - 1] ?? entry.name)}`))}>
+                <button
+                  type="button"
+                  className="mention"
+                  onClick={() => setPeek({ stops: mentions.hits.map((h) => ({ position: h.position, title: h.chapterTitle })), start: i })}
+                  data-testid="lore-mention"
+                >
                   <span className="mention__ch">{m.chapterTitle}</span>
                   <span className="mention__snip" dangerouslySetInnerHTML={{ __html: m.snippet }} />
-                </a>
+                </button>
               </li>
             ))}
           </ol>
@@ -331,6 +350,7 @@ export function LoreNote({
           {entry.hidden ? 'Show in Lore' : 'Hide'}
         </Button>
       </footer>
+      {peek && <Peek novelId={novelId} stops={peek.stops} start={peek.start} terms={entry.forms} onClose={() => setPeek(null)} />}
       {editing && <EditEntry novelId={novelId} entry={entry} view={view} onClose={() => setEditing(false)} onSaved={onChanged} />}
     </article>
   );

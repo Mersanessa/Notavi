@@ -35,6 +35,9 @@ added to the Home Screen).
   the hero, and a key place isn't buried under characters.
 - **Possible duplicates.** If two entries look like the same person ("Klein" and "Klein Moretti"), the entry asks;
   one tap merges them, and "not the same" stops it asking.
+- **Look back without losing your place.** Tapping an earlier mention (or where something was first seen) opens it
+  in a small reader inside Lore, with the name highlighted and arrows to step between mentions and chapters. It
+  never changes your reading position or stats; close it and you're where you were.
 - **Through the book**: a small chart of where an entry comes up across the chapters you've read.
 - **Tidier graph**: labels never overlap (the most important win; the rest appear as you zoom), big books get a
   sparser web of connections, and phones start on the Key detail level.
