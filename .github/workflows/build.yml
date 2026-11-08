@@ -69,16 +69,18 @@ jobs:
           name: notavi-pwa-github-pages
           path: dist/
       - name: Upload for GitHub Pages
-        if: vars.DEPLOY_PAGES == 'true' && github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist/
 
   deploy-pages:
     name: Publish PWA to GitHub Pages
-    if: vars.DEPLOY_PAGES == 'true' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     needs: pwa
     runs-on: ubuntu-latest
+    # Fails harmlessly until Pages is switched on (Settings → Pages → Source: GitHub Actions).
+    continue-on-error: true
     permissions:
       pages: write
       id-token: write

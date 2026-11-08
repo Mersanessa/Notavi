@@ -90,9 +90,7 @@ Two free options:
 **A. GitHub Pages (free for public repositories).**
 Only the app's code is public; your novels never leave your devices.
 1. In the repository: **Settings → Pages → Source: GitHub Actions**.
-2. **Settings → Secrets and variables → Actions → Variables → New repository variable**:
-   name `DEPLOY_PAGES`, value `true`.
-3. Push to `main` (or re-run the workflow). The app appears at `https://<your-username>.github.io/<repo-name>/`.
+2. Push to `main` (or re-run the workflow). The app appears at `https://<your-username>.github.io/<repo-name>/`.
 
 **B. Cloudflare Pages (free, works with private repositories).**
 1. Create a free Cloudflare account. Go to **Workers & Pages → Create → Pages → Upload assets**.

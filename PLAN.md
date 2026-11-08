@@ -106,8 +106,7 @@ focus; (3) EPUB chapters whose heading differed from the TOC label ("Stave One" 
 (5) DOMPurify silently did nothing under the test DOM (replaced with own sanitiser).
 
 **Stage 10 — packaging.** `src-tauri/` compiles (`cargo check --release` passes on Linux with Tauri 2).
-`.github/workflows/build.yml`: tests → PWA artifacts (root + GitHub Pages builds, optional Pages deploy via
-`DEPLOY_PAGES` variable) → Windows `.msi` + NSIS `.exe` → Android APK (signed release if secrets exist, else debug).
+`.github/workflows/build.yml`: tests → PWA artifacts (root + GitHub Pages builds, Pages deploy on every push to main once Pages is enabled) → Windows `.msi` + NSIS `.exe` → Android APK (signed release if secrets exist, else debug).
 Tags `v*` attach builds to a GitHub Release.
 
 ## Verification status
