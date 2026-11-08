@@ -96,7 +96,7 @@ function ReadingDefaults() {
       <Stepper label="Text size" value={r.fontSize} min={12} max={40} step={1} format={(v) => `${v}px`} onChange={(v) => void set({ fontSize: v })} />
       <Stepper label="Line spacing" value={r.lineHeight} min={1.2} max={2.6} step={0.05} format={(v) => v.toFixed(2)} onChange={(v) => void set({ lineHeight: Number(v.toFixed(2)) })} />
       <div className="reading-sample" data-reader-theme={r.theme} style={{ fontFamily: READER_FONTS.find((f) => f.value === r.font)?.stack, fontSize: r.fontSize, lineHeight: r.lineHeight, fontWeight: r.fontWeight }}>
-        <span lang="la">Cogito, ergo sum.</span>
+        Call me Ishmael. Some years ago—never mind how long precisely—having little or no money in my purse, and nothing particular to interest me on shore, I thought I would sail about a little and see the watery part of the world.
       </div>
       <Stepper
         label="Daily reading goal"

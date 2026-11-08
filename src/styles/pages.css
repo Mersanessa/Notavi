@@ -176,16 +176,54 @@
     grid-template-columns: 1fr;
   }
 }
+/* The cover keeps its own shape: a flex row would otherwise stretch it to the height of the text beside it, and the
+   image would be cropped to fit. */
+.continue__lead > .cover {
+  align-self: flex-start;
+}
+/* Phones: cover beside the title, author and chapter; progress and the button run the full width underneath. */
 @media (max-width: 520px) {
   .continue__lead {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr auto auto auto;
+    column-gap: var(--s-4);
+    row-gap: 4px;
     padding: var(--s-4);
-    gap: var(--s-4);
   }
-  .continue__lead .cover--lg {
-    width: 104px;
+  .continue__lead > .cover--lg {
+    width: 96px;
+    grid-column: 1;
+    grid-row: 1 / 4;
+  }
+  .continue__body {
+    display: contents;
+  }
+  .continue__title,
+  .continue__author,
+  .continue__chapter {
+    grid-column: 2;
   }
   .continue__title {
     font-size: var(--t-xl);
+  }
+  .continue__chapter {
+    margin-top: var(--s-2);
+    align-self: start;
+    -webkit-line-clamp: 3;
+  }
+  .continue__ribbon {
+    grid-column: 1 / -1;
+    margin-top: var(--s-3);
+  }
+  .continue__meta {
+    grid-column: 1 / -1;
+  }
+  .continue__cta {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    justify-content: center;
+    margin-top: var(--s-2);
   }
 }
 
