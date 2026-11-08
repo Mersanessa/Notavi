@@ -1,6 +1,6 @@
 import { useRef, type ReactNode } from 'react';
 import { useSlidingIndicator } from './components/Fields';
-import { ChartNoAxesColumn, Folders, House, LibraryBig, Search, Settings } from 'lucide-react';
+import { Waypoints, Folders, House, LibraryBig, Search, Settings } from 'lucide-react';
 import { href, routes, useRoute } from '../app/router';
 import { Wordmark } from './components/Wordmark';
 
@@ -9,7 +9,7 @@ const NAV = [
   { to: routes.library(), match: (p: string) => p.startsWith('/library') || p.startsWith('/novel') || p === '/import' || p === '/new', label: 'Library', icon: LibraryBig, tab: true },
   { to: routes.search(), match: (p: string) => p.startsWith('/search'), label: 'Search', icon: Search, tab: true },
   { to: routes.collections(), match: (p: string) => p.startsWith('/collections'), label: 'Collections', icon: Folders, tab: false },
-  { to: routes.stats(), match: (p: string) => p.startsWith('/stats'), label: 'Stats', icon: ChartNoAxesColumn, tab: true },
+  { to: routes.lore(), match: (p: string) => p.startsWith('/lore'), label: 'Lore', icon: Waypoints, tab: true },
   { to: routes.settings(), match: (p: string) => p.startsWith('/settings'), label: 'Settings', icon: Settings, tab: true },
 ];
 

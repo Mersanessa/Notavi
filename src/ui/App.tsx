@@ -20,7 +20,7 @@ import { Reader } from './reader/Reader';
 import { readFiles } from '../platform';
 import { dismissSplash } from '../app/splash';
 
-const StatsPage = lazy(() => import('./pages/Stats'));
+const LorePage = lazy(() => import('./pages/Lore'));
 
 function Page() {
   const { segments } = useRoute();
@@ -43,9 +43,12 @@ function Page() {
     case 'collections':
       return b ? <CollectionPage id={b} /> : <CollectionsPage />;
     case 'stats':
+      // Stats now live in Settings.
+      return <Redirect to={routes.settings('stats')} />;
+    case 'lore':
       return (
         <Suspense fallback={<Spinner />}>
-          <StatsPage />
+          <LorePage novelId={b ?? null} entityKey={c === 'e' && d ? d : null} />
         </Suspense>
       );
     case 'settings':
@@ -53,6 +56,11 @@ function Page() {
     default:
       return <NotFound />;
   }
+}
+
+function Redirect({ to }: { to: string }) {
+  useEffect(() => navigate(to, { replace: true }), [to]);
+  return null;
 }
 
 function NotFound() {

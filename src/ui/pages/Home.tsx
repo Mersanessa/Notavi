@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, BookOpen, Eye, EyeOff, FilePlus2, Flame, LayoutGrid, Plus, Quote, Upload } from 'lucide-react';
+import { effectiveWpm } from '../../app/prefs';
 import { useStore, db } from '../../app/store';
 import { useAsync, useDocumentTitle } from '../../app/hooks';
 import { href, navigate, routes } from '../../app/router';
@@ -32,7 +33,7 @@ export function HomePage() {
   const novels = useStore((s) => s.novels);
   const collections = useStore((s) => s.collections);
   const app = useStore((s) => s.app);
-  const wpm = useStore((s) => s.reader.wpm);
+  const wpm = useStore((s) => effectiveWpm(s.reader));
   const [customising, setCustomising] = useState(false);
 
   const recent = useAsync(() => recentlyReadChapters(db(), 6), []);
@@ -139,7 +140,7 @@ export function HomePage() {
       case 'stats':
         return stats.data ? (
           <section key={s} className="home-section" aria-labelledby="h-stats">
-            <SectionHeader id="h-stats" title="Reading summary" action={<a className="link link--quiet" href={href(routes.stats())}>All stats</a>} />
+            <SectionHeader id="h-stats" title="Reading summary" action={<a className="link link--quiet" href={href(routes.settings('stats'))}>All stats</a>} />
             <div className="summary">
               <div className="summary__item">
                 <span className="summary__value">
@@ -210,7 +211,7 @@ function Today({ msToday, streak, goal }: { msToday: number; streak: number; goa
       <SectionHeader id="h-today" title="Today" />
       <div className={`today ${h ? '' : 'today--single'}`}>
         {goal > 0 && (
-          <a className={`goal ${met ? 'is-met' : ''}`} href={href(routes.stats())} data-testid="goal">
+          <a className={`goal ${met ? 'is-met' : ''}`} href={href(routes.settings('stats'))} data-testid="goal">
             <svg className="goal__ring" viewBox="0 0 84 84" aria-hidden>
               <circle className="goal__track" cx="42" cy="42" r={R} />
               {pct > 0 && <circle className="goal__arc" cx="42" cy="42" r={R} strokeDasharray={C} style={{ '--arc-to': `${C * (1 - pct)}`, '--arc-from': `${C}` } as React.CSSProperties} />}

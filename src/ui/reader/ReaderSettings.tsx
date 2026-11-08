@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { BookOpenText, RotateCcw, ScrollText, X } from 'lucide-react';
 import { useStore } from '../../app/store';
-import { DEFAULT_BOOK, DEFAULT_READER, READER_FONTS, READER_THEMES, TYPOGRAPHY_KEYS, type ReaderPrefs } from '../../app/prefs';
+import { MEASURE_MIN_WORDS, DEFAULT_BOOK, DEFAULT_READER, READER_FONTS, READER_THEMES, TYPOGRAPHY_KEYS, type ReaderPrefs } from '../../app/prefs';
 import type { ReadingMode } from '../../data/model';
+import { formatNumber } from '../../lib/text';
 import { IconButton, Button } from '../components/Button';
 import { Segmented, SelectField, Stepper, Switch } from '../components/Fields';
 import { listVoices, speechSupported, type VoiceInfo } from './speech';
@@ -142,9 +143,22 @@ export function ReaderSettings({ onClose, mode, onFormat }: { onClose: () => voi
               <Switch label="Smooth page scrolling" checked={r.smoothScroll} onChange={(v) => upd({ smoothScroll: v })} />
             </>
           )}
+          <Switch label="Tap names for a spoiler-free recap" hint="Characters, places and things you’ve met: what the book has said so far and where they came up before." checked={prefs.loreTaps} onChange={(v) => upd({ loreTaps: v })} />
           <Switch label="Keep the screen on" checked={r.keepAwake} onChange={(v) => upd({ keepAwake: v })} />
           <Switch label="Show progress line" checked={r.showStatus} onChange={(v) => upd({ showStatus: v })} />
-          <Stepper label="Reading speed" value={r.wpm} min={100} max={600} step={10} format={(v) => `${v} wpm`} onChange={(v) => upd({ wpm: v })} />
+          <Switch
+            label="Learn my reading speed"
+            hint={
+              prefs.measuredWpm && prefs.measuredWords >= MEASURE_MIN_WORDS
+                ? `You read about ${Math.round(prefs.measuredWpm)} words a minute (from ${formatNumber(prefs.measuredWords)} words). Time estimates use this.`
+                : `Time estimates switch to your real speed after about ${formatNumber(MEASURE_MIN_WORDS)} words of reading${prefs.measuredWords ? ` (${formatNumber(prefs.measuredWords)} so far)` : ''}.`
+            }
+            checked={prefs.autoSpeed}
+            onChange={(v) => upd({ autoSpeed: v })}
+          />
+          {(!prefs.autoSpeed || !prefs.measuredWpm || prefs.measuredWords < MEASURE_MIN_WORDS) && (
+            <Stepper label={prefs.autoSpeed ? 'Reading speed until then' : 'Reading speed'} value={r.wpm} min={100} max={600} step={10} format={(v) => `${v} wpm`} onChange={(v) => upd({ wpm: v })} />
+          )}
         </section>
 
         <Button variant="ghost" icon={RotateCcw} onClick={() => (book ? void set({ book: DEFAULT_BOOK }) : upd({ ...DEFAULT_READER, theme: r.theme, ttsVoice: r.ttsVoice, ttsRate: r.ttsRate, autoScrollSpeed: r.autoScrollSpeed, dim: r.dim, warmth: r.warmth, warmAtNight: r.warmAtNight, book: prefs.book }))}>

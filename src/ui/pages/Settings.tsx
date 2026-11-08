@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Archive, ArchiveRestore, HardDrive, KeyRound, Lock, Palette, ShieldCheck, Type, Undo2, Info, Keyboard, TriangleAlert } from 'lucide-react';
+import { ChartNoAxesColumn, Archive, ArchiveRestore, HardDrive, KeyRound, Lock, Palette, ShieldCheck, Type, Undo2, Info, Keyboard, TriangleAlert } from 'lucide-react';
 import { db, refreshLibrary, toast, useStore } from '../../app/store';
 import { useAsync, useDocumentTitle } from '../../app/hooks';
 import { useRoute } from '../../app/router';
@@ -16,6 +16,7 @@ import { PageHeader } from '../components/misc';
 import { confirmAction } from '../components/confirm';
 import { eraseLibrary } from '../../data/admin';
 import { Wordmark } from '../components/Wordmark';
+import { ReadingStats } from './Stats';
 
 export function SettingsPage() {
   useDocumentTitle('Settings');
@@ -28,6 +29,9 @@ export function SettingsPage() {
     <div className="page page--settings">
       <PageHeader title="Settings" />
       <div className="settings">
+        <Section id="stats" icon={ChartNoAxesColumn} title="Your reading" lead="Measured from your actual reading on this device.">
+          <ReadingStats />
+        </Section>
         <Appearance />
         <ReadingDefaults />
         <Backup />

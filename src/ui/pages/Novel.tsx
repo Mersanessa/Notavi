@@ -8,6 +8,7 @@ import {
   ScrollText,
 } from 'lucide-react';
 import { PasteChaptersDialog } from './PasteChapters';
+import { effectiveWpm } from '../../app/prefs';
 import { db, mutate, toast, useStore } from '../../app/store';
 import { useAsync, useDocumentTitle } from '../../app/hooks';
 import { forgetBlob } from '../../app/blobs';
@@ -87,7 +88,7 @@ export function NovelPage({ novelId }: { novelId: string }) {
 /* ------------------------------------------------------------------ header */
 
 function NovelHeader({ novel }: { novel: NovelSummary }) {
-  const wpm = useStore((s) => s.reader.wpm);
+  const wpm = useStore((s) => effectiveWpm(s.reader));
   const [collectionsOpen, setCollectionsOpen] = useState(false);
   const started = !!novel.progress;
   const minutesTotal = readingMinutes(novel.totalWords, wpm);
@@ -366,7 +367,7 @@ function ChaptersTab({ novel }: { novel: NovelSummary }) {
   const pasteDialog = pasting && (
     <PasteChaptersDialog novel={novel} existingTitles={list.map((c) => c.title)} onClose={() => setPasting(false)} onDone={() => chapters.reload()} />
   );
-  const wpm = useStore((s) => s.reader.wpm);
+  const wpm = useStore((s) => effectiveWpm(s.reader));
 
   useEffect(() => {
     if (mode !== 'text' || !q.trim()) return setHits(null);

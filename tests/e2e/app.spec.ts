@@ -264,7 +264,11 @@ test('bookmarks, highlights and notes, browsable per novel', async ({ page, cont
 
   // Highlight.
   await selectText(page, 0, 0, 39); // "Alice was beginning to get very tired o"
-  await page.getByRole('button', { name: 'Highlight in Sage' }).click();
+  await page.getByTestId('highlight-btn').click();
+  await expect(page.locator('mark.hl.hl-amber')).toHaveText('Alice was beginning to get very tired o');
+  // Colour is changed from the highlight itself, and remembered for the next one.
+  await page.locator('mark.hl').first().click();
+  await page.getByRole('button', { name: 'Change colour to Sage' }).click();
   await expect(page.locator('mark.hl.hl-sage')).toHaveText('Alice was beginning to get very tired o');
 
   // Note on another passage.
@@ -655,8 +659,8 @@ test('rates novels, and Home shows the daily goal and a highlight to revisit', a
 
   await startReading(page, 'Alice’s Adventures in Wonderland (excerpt)');
   await selectText(page, 0, 0, 39);
-  await page.getByRole('button', { name: 'Highlight in Sage' }).click();
-  await expect(page.locator('mark.hl.hl-sage')).toBeVisible();
+  await page.getByTestId('highlight-btn').click();
+  await expect(page.locator('mark.hl')).toBeVisible();
 
   const home = await restart(context, page, '/#/');
   await expect(home.getByTestId('revisit')).toContainText('Alice was beginning to get very tired o');
@@ -750,4 +754,89 @@ test('reads an ebook as a book with pages, and switches to web novel and back wi
   for (let i = 0; i < 12 && (await page.locator('.reader__chapter').textContent()) === 'Prologue'; i++) await page.keyboard.press('ArrowLeft');
   await expect(page.locator('.reader__chapter')).not.toHaveText('Prologue');
 });
+});
+
+/* ------------------------------------------------------------------ Lore */
+
+async function readUpTo(page: Page, target: string) {
+  for (let i = 0; i < 10 && (await chapterTitle_(page)) !== target; i++) {
+    await page.keyboard.press('n');
+    await page.waitForTimeout(250);
+  }
+  await expect(chapterTitle(page)).toHaveText(target);
+  await page.waitForTimeout(900); // progress is saved
+}
+const chapterTitle_ = (page: Page) => page.locator('.chapter-head__title').textContent();
+
+/** Click the middle of the first occurrence of `word` in the middle of the page (not a page-turn zone). */
+async function tapWord(page: Page, word: string) {
+  const pt = await page.evaluate((w) => {
+    const walker = document.createTreeWalker(document.querySelector('[data-testid=chapter-text]')!, NodeFilter.SHOW_TEXT);
+    let n: Node | null;
+    while ((n = walker.nextNode())) {
+      let i = n.textContent!.indexOf(w);
+      while (i >= 0) {
+        const r = document.createRange();
+        r.setStart(n, i + 1);
+        r.setEnd(n, i + 2);
+        const b = r.getBoundingClientRect();
+        if (b.left > innerWidth * 0.3 && b.right < innerWidth * 0.7 && b.top > 120 && b.bottom < innerHeight - 120) return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+        i = n.textContent!.indexOf(w, i + 1);
+      }
+    }
+    return null;
+  }, word);
+  expect(pt, `"${word}" visible in the middle of the page`).not.toBeNull();
+  await page.mouse.click(pt!.x, pt!.y);
+}
+
+test('Lore: a spoiler-free encyclopaedia built from what you have read', async ({ page }) => {
+  await importFiles(page, ['lore-saga.txt']);
+  await startReading(page, 'lore-saga');
+  await readUpTo(page, 'Chapter 3: Greywater');
+
+  // Tap a name while reading: what the book has said so far and where it came up before.
+  await page.waitForTimeout(1500); // Lore builds in the background
+  await tapWord(page, 'Orsk');
+  const card = page.getByTestId('lore-card');
+  await expect(card).toBeVisible();
+  await expect(card).toContainText('Orsk');
+  await expect(card).toContainText('a broad man with a lantern');
+  await expect(card).toContainText('Previously');
+  await expect(card).not.toContainText('Seraphine');
+  await page.keyboard.press('Escape');
+  await expect(card).toHaveCount(0);
+
+  // The Lore section: index view.
+  await page.goto('/#/lore');
+  await expect(page.getByTestId('lore')).toBeVisible();
+  await expect(page.locator('.lore-head__upto')).toContainText('Chapter 3: Greywater');
+  await page.getByRole('radio', { name: 'Index' }).click();
+  await page.getByTestId('lore-cat-character').click();
+  const items = page.getByTestId('lore-item');
+  await expect(items.first()).toBeVisible();
+  const names = await items.locator('.lore-item__name').allTextContents();
+  expect(names).toEqual(expect.arrayContaining(['Mira Valen', 'Orsk', 'Doran Kett']));
+  expect(names).not.toContain('Seraphine Vale'); // only appears later
+  await items.filter({ hasText: 'Doran Kett' }).click();
+  const note = page.getByTestId('lore-note');
+  await expect(note).toContainText('the master of the Tidewatch Guild');
+  await expect(note).toContainText('Chapter 2: The Guild');
+  await page.getByTestId('lore-note-box').fill('Knows more than he says.');
+  await expect(note).toContainText('Saved');
+  await page.reload();
+  await expect(page.getByTestId('lore-note-box')).toHaveValue('Knows more than he says.');
+
+  // Graph view (the default) draws the map.
+  await page.getByRole('radio', { name: 'Graph' }).click();
+  await expect(page.getByTestId('lore-graph')).toBeVisible();
+  await expect(page.getByTestId('lore-note')).toBeVisible(); // the selected entry opens beside it
+});
+
+test('stats live in Settings now', async ({ page }) => {
+  await page.goto('/#/stats');
+  await expect(page).toHaveURL(/#\/settings\?s=stats/);
+  await expect(page.getByRole('heading', { name: 'Your reading' })).toBeVisible();
+  await expect(page.locator('.rail').getByText('Lore')).toBeVisible();
+  await expect(page.locator('.rail').getByText('Stats')).toHaveCount(0);
 });

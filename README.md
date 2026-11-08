@@ -19,6 +19,37 @@ your library lives on your device, and it leaves only when you export an encrypt
 Runs on **Windows** (installer), **Android** (APK, made for the Honor MagicPad 2) and **iPhone** (as a web app
 added to the Home Screen).
 
+### New in 1.3: Lore, a spoiler-free encyclopaedia
+
+**Lore** (in the main menu, where Stats used to be) keeps track of the people, places, organisations and terms in
+each novel, **using only what you've read so far**: nothing from later chapters, not even how important someone will
+become. Entries are ranked by importance (Major, Recurring, Minor, Passing mentions) rather than alphabetically, so
+the many one-scene side characters don't bury the ones that matter.
+
+- **Graph** (the default): an Obsidian-style map. Nodes are sized by importance and coloured by kind; lines join
+  names that share paragraphs. Drag to pan, pinch or scroll to zoom, drag a node, hover or tap to light up its
+  connections. Filter by kind and choose how much detail to show.
+- **Index**: Characters / Places / Organisations / Terms, each as a tidy list by importance; places and
+  organisations nest under what they're part of (e.g. a city under its country). Tap through from entry to entry.
+- **Each entry is a note**: first appearance, how many mentions so far, other names it goes by, how the book has
+  described it ("Doran, the master of the Tidewatch Guild", with the chapter), who it appears with, every earlier
+  mention with its context (tap one to jump there), and **your own notes**.
+- **While reading, tap a name** (or hover over it on a computer) for a small card with the same, cut off at the
+  word you tapped. Select any phrase and tap the **Look up** button to search for it the same way.
+
+How it works, honestly: there's **no AI**, and nothing leaves your device. Notavi reads the novel once in the
+background (a few seconds for a long web novel) and works out names from how words are capitalised, kinds from
+clues like "said X" or "in X", and descriptions from the book's own sentences ("X, a …"). It's good but not
+perfect, so every entry can be renamed, retyped, **merged** with another name for the same person, set as part of
+something else, or hidden (**Edit entry** at the bottom of each note). Your corrections and notes are kept when the index is rebuilt.
+
+Also in 1.3:
+- **Reading time from your real speed**: Notavi measures how fast you actually read (ignoring skimming and
+  read-aloud) and uses it for every "minutes left" once it has a few thousand words to go on. See it in Settings.
+- **Stats moved to Settings** (**Your reading**) and slimmed down.
+- The **selection bar** fits small screens: one **Highlight** button (it uses the colour you last chose; tap a
+  highlight to change its colour), Note, Bookmark and Look up. On iPhone, Copy is in the system menu.
+
 ### New in 1.2: read as a web novel or as a book
 
 Every novel has a **Read as** switch (on its page, and at the top of the reader's **Aa** settings):

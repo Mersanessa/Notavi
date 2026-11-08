@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { Bookmark, Copy, StickyNote, Trash2, X } from 'lucide-react';
+import { BookMarked, Bookmark, Copy, Highlighter, StickyNote, Trash2, X } from 'lucide-react';
 import { HIGHLIGHT_COLORS, type Annotation, type HighlightColor } from '../../data/model';
 
 export interface SelectionInfo {
@@ -29,37 +29,64 @@ function useFloat(rect: DOMRect) {
   return { ref, style: { top: pos.top, left: pos.left } };
 }
 
+const IOS = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent);
+const LAST_COLOUR = 'notavi.lastHighlight';
+
+/** The colour new highlights get: the last one you picked (change it by tapping a highlight). */
+export function lastHighlightColour(): HighlightColor {
+  try {
+    const c = localStorage.getItem(LAST_COLOUR) as HighlightColor | null;
+    return c && HIGHLIGHT_COLORS.includes(c) ? c : 'amber';
+  } catch {
+    return 'amber';
+  }
+}
+export function rememberHighlightColour(c: HighlightColor) {
+  try {
+    localStorage.setItem(LAST_COLOUR, c);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function SelectionToolbar({
   info,
   onHighlight,
   onNote,
   onBookmark,
   onCopy,
+  onLookUp,
 }: {
   info: SelectionInfo;
   onHighlight: (c: HighlightColor) => void;
   onNote: () => void;
   onBookmark: () => void;
   onCopy: () => void;
+  onLookUp?: () => void;
 }) {
   const { ref, style } = useFloat(info.rect);
+  const colour = lastHighlightColour();
   return (
-    <div ref={ref} className="float-bar" style={style} role="toolbar" aria-label="Selected text" data-notap onPointerDown={(e) => e.preventDefault()}>
-      <div className="float-bar__swatches">
-        {HIGHLIGHT_COLORS.map((c) => (
-          <button key={c} type="button" className={`swatch hl-${c}`} aria-label={`Highlight in ${COLOUR_NAMES[c]}`} title={`Highlight (${COLOUR_NAMES[c]})`} onClick={() => onHighlight(c)} />
-        ))}
-      </div>
-      <span className="float-bar__sep" />
+    <div ref={ref} className="float-bar float-bar--compact" style={style} role="toolbar" aria-label="Selected text" data-notap onPointerDown={(e) => e.preventDefault()}>
+      <button type="button" className={`float-bar__btn float-bar__btn--hl hl-${colour}`} onClick={() => onHighlight(colour)} data-testid="highlight-btn">
+        <Highlighter size={17} aria-hidden /> Highlight
+      </button>
       <button type="button" className="float-bar__btn" onClick={onNote}>
         <StickyNote size={17} aria-hidden /> Note
       </button>
-      <button type="button" className="float-bar__btn" onClick={onBookmark}>
-        <Bookmark size={17} aria-hidden /> Bookmark
+      <button type="button" className="float-bar__btn" onClick={onBookmark} aria-label="Bookmark">
+        <Bookmark size={17} aria-hidden />
       </button>
-      <button type="button" className="float-bar__btn" onClick={onCopy} aria-label="Copy">
-        <Copy size={17} aria-hidden />
-      </button>
+      {onLookUp && (
+        <button type="button" className="float-bar__btn" onClick={onLookUp} aria-label="Look up in Lore" data-testid="lookup-btn">
+          <BookMarked size={17} aria-hidden />
+        </button>
+      )}
+      {!IOS && (
+        <button type="button" className="float-bar__btn" onClick={onCopy} aria-label="Copy">
+          <Copy size={17} aria-hidden />
+        </button>
+      )}
     </div>
   );
 }
@@ -86,7 +113,7 @@ export function HighlightPopover({
       <div className="float-bar__row">
         <div className="float-bar__swatches">
           {HIGHLIGHT_COLORS.map((c) => (
-            <button key={c} type="button" className={`swatch hl-${c} ${c === ann.color ? 'is-on' : ''}`} aria-label={`Change colour to ${COLOUR_NAMES[c]}`} aria-pressed={c === ann.color} onClick={() => onColour(c)} />
+            <button key={c} type="button" className={`swatch hl-${c} ${c === ann.color ? 'is-on' : ''}`} aria-label={`Change colour to ${COLOUR_NAMES[c]}`} aria-pressed={c === ann.color} onClick={() => (rememberHighlightColour(c), onColour(c))} />
           ))}
         </div>
         <span className="float-bar__sep" />

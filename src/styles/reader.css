@@ -1333,3 +1333,20 @@ html:has(.reader) {
   color: var(--r-muted);
   line-height: 1.5;
 }
+
+/* Selection bar: compact, always inside the screen */
+.float-bar {
+  max-width: calc(100vw - 16px);
+}
+.float-bar__row {
+  flex-wrap: wrap;
+}
+.float-bar--compact {
+  gap: 2px;
+}
+.float-bar__btn--hl {
+  font-weight: 650;
+}
+.float-bar__btn--hl svg {
+  color: var(--hl);
+}

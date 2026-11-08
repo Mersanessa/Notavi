@@ -92,3 +92,21 @@ describe('read aloud helpers', () => {
     expect(pickVoice(voices, null, 'ja')).toBeNull();
   });
 });
+
+describe('reading speed', () => {
+  it('learns from plausible reading, ignores skimming, and is only used once there is enough', async () => {
+    const { addSpeedSample, effectiveWpm } = await import('../../src/app/prefs');
+    let m = { measuredWpm: null as number | null, measuredWords: 0 };
+    expect(addSpeedSample(m, 5000, 30000)).toBeNull(); // 10,000 wpm: skimming
+    expect(addSpeedSample(m, 100, 10000)).toBeNull(); // too short to judge
+    m = addSpeedSample(m, 600, 120000)!; // 300 wpm
+    expect(m.measuredWpm).toBe(300);
+    expect(effectiveWpm({ wpm: 230, autoSpeed: true, ...m })).toBe(230); // not enough yet
+    for (let i = 0; i < 4; i++) m = addSpeedSample(m, 400, 120000)!; // 200 wpm
+    expect(m.measuredWords).toBe(2200);
+    expect(m.measuredWpm!).toBeGreaterThan(200);
+    expect(m.measuredWpm!).toBeLessThan(260);
+    expect(effectiveWpm({ wpm: 230, autoSpeed: true, ...m })).toBe(Math.round(m.measuredWpm!));
+    expect(effectiveWpm({ wpm: 230, autoSpeed: false, ...m })).toBe(230);
+  });
+});

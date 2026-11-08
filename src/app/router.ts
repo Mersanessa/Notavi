@@ -100,6 +100,8 @@ export const routes = {
   collections: () => '/collections',
   collection: (id: string) => `/collections/${encodeURIComponent(id)}`,
   stats: () => '/stats',
+  lore: (novelId?: string, entityKey?: string, q?: string) =>
+    `/lore${novelId ? `/${encodeURIComponent(novelId)}` : ''}${entityKey ? `/e/${encodeURIComponent(entityKey)}` : ''}${q ? `?${q}` : ''}`,
   settings: (section?: string) => '/settings' + (section ? `?s=${section}` : ''),
   importFiles: () => '/import',
 };

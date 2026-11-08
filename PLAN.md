@@ -17,7 +17,32 @@ Single source of truth for progress. If context resets, resume from here.
 | 9 | Testing | ✅ 78 unit + 18 end-to-end tests passing (headless Chrome) |
 | 10 | Packaging: PWA, CI, README | ✅ done; CI green on GitHub (Windows installer, Android APK, PWA) |
 | 1.1 | Brand, motion, haptics, reader extras, goals | ✅ done |
-| 1.2 | Read as web novel or book (paginated, Apple Books-style), reversible | ✅ done — 90 unit + 24 end-to-end tests passing |
+| 1.2 | Read as web novel or book (paginated, Apple Books-style), reversible | ✅ done |
+| 1.3 | Lore: spoiler-free encyclopaedia (graph + index), name cards in the reader, real reading speed | ✅ done — 102 unit + 26 end-to-end tests passing |
+
+## Version 1.3 — Lore (spoiler-free encyclopaedia), real reading speed
+
+Asked for: spoiler-free explanations of names with earlier mentions; a spoiler-free encyclopaedia as its own
+section, ranked by importance, with a "complex" Obsidian-style graph view (default) and a "simple" tap-through view;
+reading time from real speed; Stats slimmed into Settings; a selection bar that fits the iPhone.
+
+- **No AI, all on device** (Notavi never goes online). `src/lore/extract.ts` reads every chapter once (in a worker,
+  `src/lore/worker.ts`): capitalised runs → candidate names; a word is part of a name only if it's capitalised
+  mid-sentence far more often than lower-case across the novel; honorifics stripped; first/last names grouped with
+  the full name they overwhelmingly belong to; kind from cues (speech verbs, "in X", place/organisation words, "the
+  X"); descriptions from appositives ("X, a …", "X was a …"); co-occurrence per paragraph (top 60 pairs per chapter).
+- **Spoiler gating** (`src/lore/view.ts`): everything is stored per chapter; the view sums only chapters before the
+  reading position plus a live scan of the read part of the current chapter. Display names, rank, tiers,
+  descriptions and connections are all computed from that cut-off, so nothing about later chapters leaks (not even
+  a surname or future importance). Earlier mentions come from FTS with `position < current`.
+- **Storage** (schema v4): `lore_index` (JSON per novel, rebuilt when `content_updated_at` changes) and `lore_user`
+  (your renames, kinds, merges, part-of, hidden, notes — never overwritten).
+- **UI**: `src/ui/pages/Lore.tsx` (graph/index/notes), `src/ui/lore/LoreGraph.tsx` (canvas + d3-force; pan, pinch,
+  wheel, drag, hover highlight, fly-to), `LoreNote.tsx`, reader `LoreCard.tsx` (tap or hover a name).
+- Scale check (synthetic, Node): 1,500 chapters / 22 MB of HTML → scan 1.7 s + finish 0.6 s; a view in ~140 ms.
+  Expect a few times slower on a phone (it runs once, in the background).
+- **Reading speed**: words passed per active stretch (≥20 s, 60–1000 wpm, not while auto-scrolling or listening),
+  smoothed with recent reading weighted most; used once 1,500+ words are measured.
 
 ## Version 1.2 — read as a web novel or as a book
 
@@ -196,6 +221,10 @@ used. The EPUB importer no longer silently drops any section; it tags sections (
 - **Read aloud on iPhone** stops when the screen locks (Safari suspends speech); keep the screen on while listening.
   On Android the app uses the system TTS engine, which needs a voice installed (Google TTS usually is).
 - **View transitions** need iOS 18+/Chrome 111+; elsewhere screens change instantly.
+- **Lore is heuristic**: names are found from capitalisation and context, so expect some misses and some junk on a
+  real web novel; corrections (rename/merge/retype/hide) are there for that. Descriptions are only the book's own
+  appositive sentences, so many entries have none. Tested on an original fixture story and synthetic scale data,
+  not yet on Lord of Mysteries / Shadow Slave themselves.
 - **v2 not started**: reminders and live encrypted sync.
 
 ## Left to do

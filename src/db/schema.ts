@@ -174,6 +174,27 @@ export const MIGRATIONS: string[] = [
   ALTER TABLE chapters ADD COLUMN book_only INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE chapters ADD COLUMN original_title TEXT NOT NULL DEFAULT '';
   `,
+  /* v4 (1.3): Lore, the spoiler-free encyclopaedia. The index is derived from the chapters (rebuilt when they
+     change); lore_user holds what you've corrected or written yourself and is never overwritten. */ `
+  CREATE TABLE lore_index (
+    novel_id TEXT PRIMARY KEY REFERENCES novels(id) ON DELETE CASCADE,
+    built_at INTEGER NOT NULL,
+    version INTEGER NOT NULL,
+    data TEXT NOT NULL
+  );
+  CREATE TABLE lore_user (
+    novel_id TEXT NOT NULL REFERENCES novels(id) ON DELETE CASCADE,
+    entity_key TEXT NOT NULL,
+    name TEXT,
+    kind TEXT,
+    hidden INTEGER NOT NULL DEFAULT 0,
+    merged_into TEXT,
+    parent TEXT,
+    note TEXT NOT NULL DEFAULT '',
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (novel_id, entity_key)
+  );
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

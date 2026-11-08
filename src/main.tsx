@@ -20,6 +20,7 @@ import './styles/base.css';
 import './styles/components.css';
 import './styles/pages.css';
 import './styles/reader.css';
+import './styles/lore.css';
 import './styles/motion.css';
 
 import { App } from './ui/App';

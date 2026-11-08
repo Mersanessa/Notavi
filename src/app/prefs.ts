@@ -81,6 +81,13 @@ export interface ReaderPrefs {
   warmth: number;
   warmAtNight: boolean;
   book: BookTypography;
+  /** Learn reading speed from real reading and use it for time estimates. */
+  autoSpeed: boolean;
+  /** Smoothed words per minute measured while reading, and how many words it's based on. */
+  measuredWpm: number | null;
+  measuredWords: number;
+  /** Tap (or hover over) a name while reading for a spoiler-free card. */
+  loreTaps: boolean;
 }
 
 /** Defaults mirror the reading feel the user is used to: Nunito Sans with airy line spacing. */
@@ -109,7 +116,32 @@ export const DEFAULT_READER: ReaderPrefs = {
   warmth: 0,
   warmAtNight: false,
   book: DEFAULT_BOOK,
+  autoSpeed: true,
+  measuredWpm: null,
+  measuredWords: 0,
+  loreTaps: true,
 };
+
+/** Enough reading to trust the measurement (a few chapters' worth). */
+export const MEASURE_MIN_WORDS = 1500;
+
+/** The reading speed used for estimates: what you've been measured at, once there's enough to go on. */
+export function effectiveWpm(r: Pick<ReaderPrefs, 'wpm' | 'autoSpeed' | 'measuredWpm' | 'measuredWords'>): number {
+  return r.autoSpeed && r.measuredWpm && r.measuredWords >= MEASURE_MIN_WORDS ? Math.round(r.measuredWpm) : r.wpm;
+}
+
+/**
+ * Fold one stretch of reading into the measured speed. Stretches that look like skimming or jumping
+ * around (implausibly fast or slow) are ignored. Recent reading counts most, so the figure follows you.
+ */
+export function addSpeedSample(prev: { measuredWpm: number | null; measuredWords: number }, words: number, ms: number): { measuredWpm: number | null; measuredWords: number } | null {
+  if (ms < 20000 || words < 40) return null;
+  const wpm = words / (ms / 60000);
+  if (wpm < 60 || wpm > 1000) return null;
+  const weight = Math.min(prev.measuredWords, 20000);
+  const measured = prev.measuredWpm == null ? wpm : (prev.measuredWpm * weight + wpm * words) / (weight + words);
+  return { measuredWpm: Math.round(measured * 10) / 10, measuredWords: prev.measuredWords + Math.round(words) };
+}
 
 export type HomeSection = 'continue' | 'today' | 'recentChapters' | 'recentlyAdded' | 'recentlyUpdated' | 'favourites' | 'recommended' | 'collections' | 'stats';
 

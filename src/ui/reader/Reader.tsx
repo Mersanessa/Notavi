@@ -3,10 +3,15 @@ import { ArrowLeft, Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, List, Ma
 import { db, mutate, refreshLibrary, toast, useStore } from '../../app/store';
 import { navigate, routes, useRoute } from '../../app/router';
 import { resolveBlobRefs } from '../../app/blobs';
-import { DEFAULT_BOOK, READER_FONTS, applyAppTheme, setThemeColour, type ReaderTheme } from '../../app/prefs';
+import { DEFAULT_BOOK, READER_FONTS, addSpeedSample, applyAppTheme, effectiveWpm, setThemeColour, type ReaderTheme } from '../../app/prefs';
 import type { Annotation, Chapter, ChapterMeta, HighlightColor, NovelSummary, ReadingMode } from '../../data/model';
 import { displayTitle, getChapter, getNovel, listChapters, updateNovel } from '../../data/novels';
 import { Cover } from '../components/Cover';
+import { ensureLore } from '../../lore/build';
+import { getLoreOverrides } from '../../data/lore';
+import { normaliseRun, scanChapter, type LoreIndex } from '../../lore/extract';
+import { loreView, type LoreOverride } from '../../lore/view';
+import { LoreCard } from '../lore/LoreCard';
 import { getProgress, logReading, markChapterCompleted, saveProgress } from '../../data/reading';
 import { addAnnotation, deleteAnnotation, listAnnotationsForChapter, listAnnotationsForNovel, toggleChapterBookmark, updateAnnotation } from '../../data/annotations';
 import { sanitizeChapterHtml } from '../../import/dom';
@@ -103,6 +108,85 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
   const [tts, setTts] = useState<{ playing: boolean; index: number; total: number } | null>(null);
   const [auto, setAuto] = useState<{ running: boolean } | null>(null);
   const newAnn = useRef<string | null>(null);
+
+  /* ---------------------------------------------------------------- lore: tap a name */
+
+  const [loreIdx, setLoreIdx] = useState<LoreIndex | null>(null);
+  const [loreOv, setLoreOv] = useState<LoreOverride[]>([]);
+  useEffect(() => {
+    let alive = true;
+    // Built (once) in the background, after the chapter has had time to open.
+    const t = setTimeout(() => {
+      void Promise.all([ensureLore(db(), novelId), getLoreOverrides(db(), novelId)])
+        .then(([i, o]) => {
+          if (!alive) return;
+          setLoreIdx(i);
+          setLoreOv(o);
+        })
+        .catch(() => {});
+    }, 1200);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [novelId]);
+  const properSet = useMemo(() => (loreIdx ? new Set(loreIdx.proper) : null), [loreIdx]);
+  const [loreCard, setLoreCard] = useState<{ key: string | null; name: string; rect: DOMRect; block: number; hover: boolean } | null>(null);
+  const loreCardRef = useRef<HTMLDivElement>(null);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** The known name under a point on the page, if any. */
+  function loreHitAt(x: number, y: number) {
+    const root = article.current;
+    if (!loreIdx || !properSet || !root) return null;
+    const d = document as unknown as { caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null; caretRangeFromPoint?: (x: number, y: number) => Range | null };
+    let node: Node | null = null;
+    let off = 0;
+    if (d.caretPositionFromPoint) {
+      const p = d.caretPositionFromPoint(x, y);
+      if (p) ((node = p.offsetNode), (off = p.offset));
+    } else if (d.caretRangeFromPoint) {
+      const r = d.caretRangeFromPoint(x, y);
+      if (r) ((node = r.startContainer), (off = r.startOffset));
+    }
+    if (!node || node.nodeType !== Node.TEXT_NODE || !root.contains(node)) return null;
+    const bi = blocks.current.findIndex((b) => b.contains(node));
+    if (bi < 0) return null;
+    const block = blocks.current[bi];
+    const text = block.textContent ?? '';
+    const at = textOffset(block, node, off);
+    const toks = [...text.matchAll(/[\p{L}\p{M}][\p{L}\p{M}\p{N}'’-]*/gu)].map((m) => ({ w: m[0].replace(/['’]s$/i, ''), s: m.index!, e: m.index! + m[0].length }));
+    const i = toks.findIndex((t) => at >= t.s && at <= t.e);
+    if (i < 0) return null;
+    const w0 = toks[i].w;
+    if (w0[0] === w0[0].toLowerCase()) return null;
+    for (let len = 5; len >= 1; len--) {
+      for (let a = Math.max(0, i - len + 1); a <= i; a++) {
+        const b = a + len - 1;
+        if (b >= toks.length) continue;
+        const run = toks.slice(a, b + 1);
+        if (run.some((t, k) => k > 0 && text.slice(run[k - 1].e, t.s).trim() !== '')) continue; // punctuation breaks a name
+        const f = normaliseRun(run.map((t) => t.w).join(' '), properSet);
+        if (!f) continue;
+        const ei = loreIdx.formMap[f.form.toLowerCase()];
+        if (ei === undefined) continue;
+        const range = rangeFromOffsets(block, run[0].s, run[run.length - 1].e);
+        const rects = range ? Array.from(range.getClientRects()) : [];
+        if (!rects.some((r) => x >= r.left - 3 && x <= r.right + 3 && y >= r.top - 3 && y <= r.bottom + 3)) return null;
+        return { key: loreIdx.entities[ei].key, name: f.form, rect: rects[0], block: bi };
+      }
+    }
+    return null;
+  }
+
+  const cardData = useMemo(() => {
+    if (!loreCard || !chapter) return null;
+    if (!loreIdx) return { view: null, entry: null };
+    const live = scanChapter(chapter.content, chapter.position, loreCard.block + 1);
+    const v = loreView(loreIdx, loreOv, { pos: chapter.position, live }, { includeHidden: true });
+    const key = loreCard.key ? v.resolve(loreCard.key) : null;
+    return { view: v, entry: key ? v.byKey.get(key) ?? null : null };
+  }, [loreCard, loreIdx, loreOv, chapter]);
 
   /* ---------------------------------------------------------------- book format: pages */
 
@@ -345,6 +429,7 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
     openAtEnd.current = false;
     restoring.current = false;
     renderedFor.current = view!.chapter.id;
+    speedSeg.current = { chapter: view!.chapter.id, ratio: initialAnchor && (initialAnchor.blockIndex > 0 || initialAnchor.blockOffset > 0) ? lastRatio.current : 0 };
     lastRatio.current = initialAnchor && (initialAnchor.blockIndex > 0 || initialAnchor.blockOffset > 0) ? lastRatio.current : 0;
     const openedAtRender = Date.now();
     // Re-apply once fonts and images have settled (they can shift layout), unless the reader has already moved.
@@ -479,9 +564,21 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
       const end = Math.min(Date.now(), lastInteraction.current + IDLE_MS);
       const ms = end - timerStart.current;
       if (ms > 0) void logReading(db(), { novelId, chapterId: c.id, startedAt: timerStart.current, durationMs: ms }).then(celebrateGoal);
+      // Learn your reading speed from how far you got in this stretch (not while listening or auto-scrolling).
+      const sg = speedSeg.current;
+      if (ms > 0 && sg.chapter === c.id && renderedFor.current === c.id && !speaker.current?.playing && !autoRef.current) {
+        const words = (lastRatio.current - sg.ratio) * c.wordCount;
+        const r = useStore.getState().reader;
+        const next = addSpeedSample(r, words, ms);
+        if (next) void useStore.getState().setReader(next);
+      }
     }
+    speedSeg.current = { chapter: renderedFor.current, ratio: lastRatio.current };
     timerStart.current = document.visibilityState === 'visible' ? Date.now() : null;
   }, [novelId]);
+  const speedSeg = useRef<{ chapter: string | null; ratio: number }>({ chapter: null, ratio: 0 });
+  const autoRef = useRef(false);
+  autoRef.current = !!auto?.running;
 
   useEffect(() => {
     timerStart.current = Date.now();
@@ -679,7 +776,8 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
           toggleAuto();
           break;
         case 'Escape':
-          if (selection) setSelection(null);
+          if (loreCard) setLoreCard(null);
+          else if (selection) setSelection(null);
           else if (findText !== null) closeFind();
           else if (tts) stopSpeech();
           else if (auto) setAuto(null);
@@ -710,6 +808,24 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
     el?.style.setProperty('--drag', '0px');
   };
   const onPointerMove = (e: React.PointerEvent) => {
+    if (e.pointerType === 'mouse' && !pointer.current && prefs.loreTaps) {
+      // Hovering over a name with a mouse opens its card after a moment; moving well away closes it.
+      if (hoverTimer.current) clearTimeout(hoverTimer.current);
+      const x = e.clientX;
+      const y = e.clientY;
+      if (loreCard) {
+        if (loreCard.hover) {
+          const r = loreCard.rect;
+          const near = x >= r.left - 24 && x <= r.right + 24 && y >= r.top - 24 && y <= r.bottom + 24;
+          if (!near) hoverTimer.current = setTimeout(() => setLoreCard((c) => (c?.hover ? null : c)), 350);
+        }
+      } else
+        hoverTimer.current = setTimeout(() => {
+          if (window.getSelection()?.isCollapsed === false) return;
+          const hit = loreHitAt(x, y);
+          if (hit) setLoreCard({ ...hit, hover: true });
+        }, 650);
+    }
     const p = pointer.current;
     if (!book || !p || p.type === 'mouse') return;
     const dx = e.clientX - p.x;
@@ -768,13 +884,18 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
     if (Math.abs(dx) > 8 || Math.abs(dy) > 8 || dt > 500) return; // a scroll or long-press, not a tap
     const target = e.target as HTMLElement;
     if (target.closest('a, button, .hl, img, [data-noTap]')) return;
+    if (loreCard) return setLoreCard(null);
     if (panel !== 'none') return setPanel('none');
     const w = window.innerWidth;
     const zone = e.clientX / w;
     const edge = book ? 0.3 : 0.25;
     if ((book || prefs.tapToTurn) && zone < edge) page(-1);
     else if ((book || prefs.tapToTurn) && zone > 1 - edge) page(1);
-    else setChrome((c) => !c);
+    else {
+      const hit = prefs.loreTaps ? loreHitAt(e.clientX, e.clientY) : null;
+      if (hit) setLoreCard({ ...hit, hover: false });
+      else setChrome((c) => !c);
+    }
   };
 
   /* ---------------------------------------------------------------- annotations */
@@ -1189,7 +1310,8 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
   const matter = book && !!shown?.bookOnly; // title page, copyright, contents…
   const pagesLeft = Math.max(0, pageCount - pageIdx - 1);
   const shownIndex = loaded && shown ? loaded.chapters.findIndex((c) => c.id === shown.id) : -1;
-  const minutesLeft = Math.max(0, Math.round(readingMinutes(words, prefs.wpm) * (1 - ratio)));
+  const wpm = effectiveWpm(prefs);
+  const minutesLeft = Math.max(0, Math.round(readingMinutes(words, wpm) * (1 - ratio)));
   const novelPct = loaded && index >= 0 ? (index + ratio) / loaded.chapters.length : 0;
   const isLast = loaded ? index === loaded.chapters.length - 1 : false;
 
@@ -1282,7 +1404,7 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
                   Chapter {shownIndex + 1} of {formatNumber(loaded?.chapters.length ?? 0)}
                 </span>
                 {words > 0 && <span>{formatNumber(words)} words</span>}
-                {words > 0 && <span>{formatMinutes(readingMinutes(words, prefs.wpm))}</span>}
+                {words > 0 && <span>{formatMinutes(readingMinutes(words, wpm))}</span>}
               </p>
             </header>
           )}
@@ -1408,11 +1530,34 @@ export function Reader({ novelId, chapterId: requestedChapterId }: { novelId: st
           onHighlight={(c) => createFromSelection('highlight', c)}
           onNote={() => setNoteFor({ sel: selection })}
           onBookmark={() => createFromSelection('text_bookmark')}
+          onLookUp={() => {
+            const q = selection.quote.trim().replace(/\s+/g, ' ');
+            const f = properSet ? normaliseRun(q, properSet) : null;
+            const ei = f && loreIdx ? loreIdx.formMap[f.form.toLowerCase()] : undefined;
+            setLoreCard({ key: ei !== undefined ? loreIdx!.entities[ei].key : null, name: q.slice(0, 80), rect: selection.rect, block: selection.blockIndex, hover: false });
+            window.getSelection()?.removeAllRanges();
+            setSelection(null);
+          }}
           onCopy={async () => {
             toast((await copyText(selection.quote)) ? 'Copied' : "Couldn't copy");
             window.getSelection()?.removeAllRanges();
             setSelection(null);
           }}
+        />
+      )}
+      {loreCard && cardData && chapter && (
+        <LoreCard
+          novelId={novelId}
+          entry={cardData.entry}
+          name={loreCard.name}
+          view={cardData.view}
+          beforePos={chapter.position}
+          rect={loreCard.rect}
+          hover={loreCard.hover}
+          cardRef={loreCardRef}
+          onClose={() => setLoreCard(null)}
+          onSwitch={(key) => setLoreCard((c) => (c ? { ...c, key, name: cardData.view?.byKey.get(key)?.name ?? c.name, hover: false } : c))}
+          onOpenLore={(key) => navigate(routes.lore(novelId, key ?? undefined))}
         />
       )}
       {activeHighlight && (
