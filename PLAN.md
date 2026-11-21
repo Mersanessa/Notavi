@@ -55,6 +55,16 @@ just because they're mentioned less; definitions that appear without the reader 
   6.5M-word TXT in Chrome: typing 17 characters went from over 30 s to 0.12 s; reading the file and planning from
   4.4 s to 0.6 s. Volumes are now memoised on the files only, and `layout.ts` caches word counts, normalised text
   and chapter-heading splits per chapter text, so re-checks after an option change take ~0.1 s.
+- **1.4.3–1.4.6 — Android updates without reinstalling**: a permanent signing key (GitHub secrets
+  `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`; the user holds `notavi.jks` and its password)
+  so every APK installs over the last. The launcher icon is now full-bleed adaptive layers (`scripts/make-icons.mjs`).
+  Each main build publishes the APK and `version.json` at `mersanessa.github.io/Notavi/android/` (the Pages deploy
+  waits for the Android job). The app (`src/app/appUpdate.ts`) checks that file at launch and on return, at most
+  every 6 h, the only network request Notavi makes and only on Android (CSP allows that one host). **Update**
+  hands the URL to a small Kotlin bridge (`src-tauri/android-extra/NotaviUpdater.kt`, wired in by
+  `scripts/android-updater.mjs` after `tauri android init`) that downloads into the app cache with progress
+  (`UpdateBar`) and opens Android's install screen through a FileProvider. Android always requires that one Install
+  tap for apps outside the Play Store.
 - Tests: `tests/unit/lore-smarter.test.ts` (contractions, "and", plurals, pronouns, aliases, per-kind tiers,
   definitions, spoiler gating, duplicates); the end-to-end Lore test checks the definition in the card and note.
 

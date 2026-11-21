@@ -1,11 +1,13 @@
 import { isTauri, openExternal, platformName } from '../platform';
 import { APP_VERSION } from './backup';
+import { create } from 'zustand';
 import { toast } from './store';
 
 /**
  * "Update available" for the Android app, like the web app has. Each release publishes the APK and a tiny
  * version.json next to the website. The app reads that one file (nothing about you or your library is sent)
- * and, if there's a newer version, offers it; tapping Update downloads the APK, which installs over this one.
+ * and, if there's a newer version, offers it. Tapping Update downloads the APK inside the app (with progress) and
+ * opens Android's install screen; one tap on Install and it's done. Your library stays.
  * The only network request Notavi ever makes, and only in the Android app.
  */
 export const UPDATE_BASE = 'https://mersanessa.github.io/Notavi/android/';
@@ -34,8 +36,37 @@ export async function latestVersion(): Promise<string | null> {
   return typeof v === 'string' && /^\d+(\.\d+)*$/.test(v) ? v : null;
 }
 
+export type UpdatePhase = { phase: 'idle' } | { phase: 'downloading'; version: string; pct: number } | { phase: 'installing'; version: string } | { phase: 'error'; version: string; message: string };
+export const useUpdate = create<{ s: UpdatePhase }>(() => ({ s: { phase: 'idle' } }));
+
+interface NativeUpdater {
+  download(url: string): void;
+}
+const native = () => (window as unknown as { NotaviUpdater?: NativeUpdater }).NotaviUpdater;
+
 export function installUpdate(version: string) {
-  void openExternal(`${UPDATE_BASE}notavi-${version}.apk`).catch((e: Error) => toast({ message: e.message, tone: 'error' }));
+  const url = `${UPDATE_BASE}notavi-${version}.apk`;
+  const n = native();
+  if (!n) {
+    // An older build without the in-app updater: let the browser fetch it.
+    void openExternal(url).catch((e: Error) => toast({ message: e.message, tone: 'error' }));
+    return;
+  }
+  const cur = useUpdate.getState().s;
+  if (cur.phase === 'downloading') return;
+  useUpdate.setState({ s: { phase: 'downloading', version, pct: 0 } });
+  (window as unknown as { __notaviUpdate: (kind: string, detail: string) => void }).__notaviUpdate = (kind, detail) => {
+    if (kind === 'progress') useUpdate.setState({ s: { phase: 'downloading', version, pct: Number(detail) || 0 } });
+    else if (kind === 'installing') {
+      useUpdate.setState({ s: { phase: 'installing', version } });
+      setTimeout(() => useUpdate.getState().s.phase === 'installing' && useUpdate.setState({ s: { phase: 'idle' } }), 15000);
+    } else if (kind === 'error') useUpdate.setState({ s: { phase: 'error', version, message: detail } });
+  };
+  n.download(url);
+}
+
+export function dismissUpdate() {
+  useUpdate.setState({ s: { phase: 'idle' } });
 }
 
 function offer(version: string) {

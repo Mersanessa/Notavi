@@ -1,3 +1,4 @@
+import { UpdateBar } from './components/UpdateBar';
 import { lazy, Suspense, useEffect } from 'react';
 import { useRoute, navigate, routes } from '../app/router';
 import { useStore } from '../app/store';
@@ -149,6 +150,7 @@ export function App() {
         </Shell>
       )}
       <Toasts />
+      <UpdateBar />
       <ConfirmHost />
       <div className="drop-hint" aria-hidden>
         <span>Drop files to import them</span>

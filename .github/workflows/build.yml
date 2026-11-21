@@ -179,6 +179,8 @@ jobs:
           npx tauri android init --ci
           # Use Notavi's launcher icons.
           cp -r src-tauri/icons/android/* src-tauri/gen/android/app/src/main/res/
+          # The in-app updater (downloads the new APK and opens Android's install screen).
+          node scripts/android-updater.mjs
 
       - name: Configure release signing (only when signing secrets are set)
         id: signing
