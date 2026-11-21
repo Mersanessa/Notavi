@@ -110,3 +110,14 @@ describe('reading speed', () => {
     expect(effectiveWpm({ wpm: 230, autoSpeed: false, ...m })).toBe(230);
   });
 });
+
+describe('line spacing default', () => {
+  it('is 1.60, and old untouched 1.9 settings move to it once', async () => {
+    const { DEFAULT_READER, upgradeReaderPrefs } = await import('../../src/app/prefs');
+    expect(DEFAULT_READER.lineHeight).toBe(1.6);
+    expect(upgradeReaderPrefs({ ...DEFAULT_READER, lineHeight: 1.9 }).lineHeight).toBe(1.6);
+    expect(upgradeReaderPrefs({ ...DEFAULT_READER, lineHeight: 2.2 }).lineHeight).toBe(2.2);
+    const done = upgradeReaderPrefs({ ...DEFAULT_READER, lineHeight: 1.9 });
+    expect(upgradeReaderPrefs({ ...done, lineHeight: 1.9 }).lineHeight).toBe(1.9);
+  });
+});

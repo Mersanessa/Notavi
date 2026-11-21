@@ -58,6 +58,8 @@ export interface ReaderPrefs {
   fontSize: number; // px
   fontWeight: number;
   lineHeight: number; // unitless
+  /** Which set of defaults these prefs were last brought up to date with. */
+  defaults?: number;
   paragraphSpacing: number; // em
   measure: number; // max line length in ch
   margin: number; // px side padding (minimum)
@@ -95,7 +97,7 @@ export const DEFAULT_READER: ReaderPrefs = {
   font: 'nunito',
   fontSize: 20,
   fontWeight: 400,
-  lineHeight: 1.9,
+  lineHeight: 1.6,
   paragraphSpacing: 1.1,
   measure: 66,
   margin: 24,
@@ -215,4 +217,10 @@ export function initialTheme(): AppTheme {
   } catch {
     return 'dark';
   }
+}
+
+/** Line spacing used to default to 1.9; it's 1.6 now (as on NovelFire). Untouched old defaults move with it. */
+export function upgradeReaderPrefs(r: ReaderPrefs): ReaderPrefs {
+  if ((r.defaults ?? 1) >= 2) return r;
+  return { ...r, defaults: 2, lineHeight: r.lineHeight === 1.9 ? 1.6 : r.lineHeight };
 }

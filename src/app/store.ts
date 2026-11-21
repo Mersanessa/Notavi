@@ -5,7 +5,7 @@ import { listNovels } from '../data/novels';
 import { listCollections } from '../data/collections';
 import { getSetting, setSetting } from '../data/settings';
 import { haptic, setHapticsEnabled } from '../platform/haptics';
-import { DEFAULT_APP, DEFAULT_READER, applyAppTheme, type AppPrefs, type ReaderPrefs } from './prefs';
+import { DEFAULT_APP, DEFAULT_READER, applyAppTheme, upgradeReaderPrefs, type AppPrefs, type ReaderPrefs } from './prefs';
 
 let currentDb: Db | null = null;
 
@@ -78,7 +78,7 @@ export const useStore = create<State>((set, get) => ({
     applyAppTheme(app.theme);
     mirrorMotion(app.reduceMotion);
     setHapticsEnabled(app.haptics);
-    set({ status: 'ready', storage, app, reader, novels, collections });
+    set({ status: 'ready', storage, app, reader: upgradeReaderPrefs(reader), novels, collections });
   },
 
   fail(status, message) {
@@ -90,7 +90,7 @@ export const useStore = create<State>((set, get) => ({
     // After a restore, settings may have changed too.
     const [app, reader] = await Promise.all([getSetting(db(), 'app', DEFAULT_APP), getSetting(db(), 'reader', DEFAULT_READER)]);
     applyAppTheme(app.theme);
-    set((s) => ({ novels, collections, storage, app, reader, version: s.version + 1 }));
+    set((s) => ({ novels, collections, storage, app, reader: upgradeReaderPrefs(reader), version: s.version + 1 }));
   },
 
   async setApp(patch) {
