@@ -1922,3 +1922,15 @@ button.heatmap__cell:focus-visible {
   color: var(--text-3);
   white-space: nowrap;
 }
+
+.app-update {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  margin-block: var(--s-3);
+}

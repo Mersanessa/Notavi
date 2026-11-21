@@ -4,6 +4,7 @@ import { db, refreshLibrary, toast, useStore } from '../../app/store';
 import { useAsync, useDocumentTitle } from '../../app/hooks';
 import { useRoute } from '../../app/router';
 import { READER_FONTS, READER_THEMES, type AppTheme } from '../../app/prefs';
+import { checkForUpdate, installUpdate, updatesSupported } from '../../app/appUpdate';
 import { APP_VERSION, createBackup, inspectBackup, lastBackupAt, passphraseStrength, restoreBackup } from '../../app/backup';
 import { disableLock, enableLock, lockNow, setAutoLock, useLock, validateCode, verifyCode } from '../../app/lock';
 import { BACKUP_EXTENSION, type BackupHeader } from '../../lib/crypto';
@@ -502,15 +503,48 @@ export function EraseDialog({ onClose, onDone }: { onClose: () => void; onDone?:
 
 /* ------------------------------------------------------------------ about */
 
+function AppUpdates() {
+  const [state, setState] = useState<'idle' | 'checking' | 'current' | 'error' | { version: string }>('idle');
+  if (!updatesSupported()) return null;
+  const check = () => {
+    setState('checking');
+    checkForUpdate()
+      .then((v) => setState(v ? { version: v } : 'current'))
+      .catch(() => setState('error'));
+  };
+  return (
+    <div className="app-update" data-testid="app-update">
+      {typeof state === 'object' ? (
+        <>
+          <span>Notavi {state.version} is ready.</span>
+          <Button variant="primary" size="sm" onClick={() => installUpdate(state.version)}>
+            Update
+          </Button>
+        </>
+      ) : (
+        <>
+          <span className="muted">
+            {state === 'checking' ? 'Checking…' : state === 'current' ? "You're up to date." : state === 'error' ? "Couldn't check. Are you online?" : 'Updates are checked automatically.'}
+          </span>
+          <Button size="sm" onClick={check} disabled={state === 'checking'}>
+            Check for updates
+          </Button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function About() {
   const storage = useStore((s) => s.storage);
   return (
     <Section id="about" icon={Info} title="About Notavi">
       <Wordmark height={36} className="about-mark" />
       <p>
-        Notavi {APP_VERSION}. A private reader for one person. No accounts, no analytics, no tracking, and no network requests: your library never leaves
-        this device unless you export a backup.
+        Notavi {APP_VERSION}. A private reader for one person. No accounts, no analytics, no tracking. Your library never leaves this device unless you
+        export a backup.{updatesSupported() ? ' The only thing the app ever downloads is a tiny file saying which version is newest.' : ''}
       </p>
+      <AppUpdates />
       <p className="muted">
         Fonts: Nunito Sans, Literata, Source Serif 4, Lora, Fraunces, Hanken Grotesk and Atkinson Hyperlegible, all under the SIL Open Font License. SQLite {storage?.sqliteVersion}.
       </p>

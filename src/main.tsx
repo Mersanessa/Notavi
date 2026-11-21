@@ -30,6 +30,7 @@ import { WorkerDb, DbLockedError } from './db/client';
 import { requestPersistentStorage } from './platform';
 import { initLock } from './app/lock';
 import { registerServiceWorker } from './app/sw';
+import { startUpdateChecks } from './app/appUpdate';
 import { initSplash } from './app/splash';
 import { installGlobalHaptics } from './platform/haptics';
 
@@ -56,6 +57,7 @@ async function boot() {
 initLock();
 void boot();
 registerServiceWorker();
+startUpdateChecks();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
